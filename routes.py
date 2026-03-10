@@ -60,6 +60,43 @@ def _html_to_text(raw_html):
     return cleaned
 
 
+
+
+def _extract_text_from_responses_payload(payload):
+    """Extract text content from OpenAI Responses API payload variants."""
+    if not isinstance(payload, dict):
+        return ''
+
+    # 1) direct helper field (present in some SDK/versions)
+    output_text = payload.get('output_text')
+    if isinstance(output_text, str) and output_text.strip():
+        return output_text.strip()
+
+    # 2) official nested shape: output[*].content[*].text
+    texts = []
+    output_items = payload.get('output') or []
+    if isinstance(output_items, list):
+        for item in output_items:
+            if not isinstance(item, dict):
+                continue
+            content_list = item.get('content') or []
+            if not isinstance(content_list, list):
+                continue
+            for part in content_list:
+                if not isinstance(part, dict):
+                    continue
+                txt = part.get('text')
+                if isinstance(txt, str) and txt.strip():
+                    texts.append(txt.strip())
+    if texts:
+        return "\n".join(texts)
+
+    # 3) fallback: serialize payload for debugging/last-chance parsing
+    try:
+        return json.dumps(payload, ensure_ascii=False)
+    except Exception:
+        return ''
+
 def _extract_json_array(text_value):
     if not text_value:
         return []
@@ -272,11 +309,15 @@ MARKDOWN KNOWLEDGE BASE:
         )
         response.raise_for_status()
         result = response.json()
-        output_text = result.get('output_text', '')
+        output_text = _extract_text_from_responses_payload(result)
         questions = _extract_json_array(output_text)
 
         if not questions:
-            return jsonify({'success': False, 'error': 'Model response was not valid JSON question array.', 'raw_output': output_text}), 502
+            return jsonify({
+                'success': False,
+                'error': 'Model response was not valid JSON question array. Please retry.',
+                'raw_output': output_text[:8000]
+            }), 502
 
         saved = _save_generated_questions(questions)
         return jsonify({'success': True, 'saved_count': len(saved), 'questions': [_question_to_dict(s) for s in saved]})
