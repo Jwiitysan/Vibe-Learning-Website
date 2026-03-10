@@ -79,7 +79,7 @@
 
         <div id="courseContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {% for course in courses %}
-            <div class="course-item" data-title="{{ course.title.lower() }}" data-category="{{ (course.category or 'general').lower() }}">
+            <div class="course-item relative" data-title="{{ course.title.lower() }}" data-category="{{ (course.category or 'general').lower() }}" data-id="{{ course.id }}" data-name="{{ course.title }}" data-cat="{{ course.category }}">
                 <a href="{{ url_for('learning.course_detail', course_id=course.id) }}" class="course-card rounded-2xl overflow-hidden flex flex-col group h-full">
                     <div class="h-40 bg-cover bg-center relative" style="background-image: url('{{ url_for('static', filename='uploads/' + (course.background_image or 'default.jpg')) }}')">
                         <div class="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors"></div>
@@ -91,6 +91,11 @@
                             <i class="fa-solid fa-layer-group mr-2"></i> {{ course.topics | length }} Topics Found
                         </div>
                     </div>
+                </a>
+                <!-- edit button overlay -->
+                <button onclick="openEditCourseModal(this.closest('.course-item'))" class="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity bg-amber-100 text-amber-700 hover:bg-amber-600 hover:text-white w-8 h-8 rounded-full flex items-center justify-center shadow">
+                    <i class="fa-solid fa-pen text-xs"></i>
+                </button>
                 </a>
             </div>
             {% endfor %}
@@ -118,6 +123,22 @@
             <div class="flex justify-end space-x-3 mt-8">
                 <button type="button" onclick="document.getElementById('addCourseModal').classList.add('hidden')" class="px-5 py-2 text-gray-400">ยกเลิก</button>
                 <button type="submit" class="bg-amber-700 text-white px-8 py-2 rounded-xl font-bold">เริ่มเดินทาง</button>
+            </div>
+        </form>
+    </div>
+    <!-- edit course modal -->
+    <div id="editCourseModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <form id="editCourseForm" action="{{ url_for('learning.update_course') }}" method="POST" enctype="multipart/form-data" class="bg-white p-8 rounded-2xl w-full max-w-md">
+            <h2 class="text-2xl font-bold mb-6">แก้ไขข้อมูลวิชา</h2>
+            <input type="hidden" name="id" id="editCourseId">
+            <div class="space-y-4">
+                <input type="text" name="title" id="editCourseTitle" placeholder="ชื่อวิชา..." required class="w-full border border-slate-200 p-3 rounded-xl outline-none focus:border-amber-500">
+                <input list="catlist" type="text" name="category" id="editCourseCategory" placeholder="หมวดหมู่..." class="w-full border border-slate-200 p-3 rounded-xl outline-none focus:border-amber-500">
+                <input type="file" name="background_image" class="w-full text-sm">
+            </div>
+            <div class="flex justify-end space-x-3 mt-8">
+                <button type="button" onclick="document.getElementById('editCourseModal').classList.add('hidden')" class="px-5 py-2 text-gray-400">ยกเลิก</button>
+                <button type="submit" class="bg-blue-600 text-white px-8 py-2 rounded-xl font-bold">บันทึก</button>
             </div>
         </form>
     </div>
@@ -189,6 +210,17 @@
             const ta = document.getElementById('markdownOutput');
             ta.select();
             document.execCommand('copy');
+        }
+
+        // 🔧 เปิด modal แก้ไขวิชา
+        function openEditCourseModal(el) {
+            const id = el.dataset.id;
+            const name = el.dataset.name;
+            const cat = el.dataset.cat;
+            document.getElementById('editCourseId').value = id;
+            document.getElementById('editCourseTitle').value = name;
+            document.getElementById('editCourseCategory').value = cat;
+            document.getElementById('editCourseModal').classList.remove('hidden');
         }
     </script>
 </body>

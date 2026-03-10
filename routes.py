@@ -77,6 +77,20 @@ def create_course():
     db.session.commit()
     return redirect(url_for('learning.index'))
 
+@learning_bp.route('/update', methods=['POST'])
+def update_course():
+    course_id = request.form.get('id', type=int)
+    course = Course.query.get_or_404(course_id)
+    course.title = request.form.get('title')
+    course.category = request.form.get('category')
+    image_file = request.files.get('background_image')
+    if image_file and image_file.filename != '':
+        filename = secure_filename(image_file.filename)
+        image_file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], filename))
+        course.background_image = filename
+    db.session.commit()
+    return redirect(url_for('learning.index'))
+
 # --- หน้าเนื้อหา (เรียงอันใหม่ไว้ล่างสุด) ---
 # --- สร้าง Markdown แบบสุ่มทั้งวิชาและจำนวนเนื้อหา ---
 @learning_bp.route('/generate_markdown')
