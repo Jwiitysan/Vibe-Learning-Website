@@ -225,18 +225,28 @@ def _difficulty_counts(monster, total_count):
     return counts
 
 
-def _generate_questions_for_mode(markdown_text, mode, count, api_key):
+def _generate_questions_for_mode(markdown_text, mode, count, api_key, all_counts=None):
     if count <= 0:
         return []
 
     mode_instruction = _build_mode_instruction(mode)
+    
+    # Build difficulty distribution context
+    difficulty_context = ""
+    if all_counts:
+        total = sum(all_counts.values())
+        distribution = ", ".join([f"{d}: {all_counts[d]}" for d in DIFFICULTY_ORDER])
+        difficulty_context = f"""
+Battle Question Distribution (total: {total}):
+{distribution}
+"""
+    
     prompt = f"""
 You are generating quiz questions for an RPG monster battle.
 Language: English only.
 Count: {count}
-Difficulty: {mode.upper()}
 Difficulty guidance: {mode_instruction}
-
+{difficulty_context}
 Return ONLY a JSON array.
 No markdown, no extra text.
 Each item must contain exactly:
@@ -254,10 +264,18 @@ Rules:
 - Provide exactly 3 distractors.
 - Do not include numbering prefixes in answer texts.
 
+Note:
+- Each choices should have similar length and complexity to avoid giving away the answer.
+- Easy Diffulty: Focus on direct recall of facts. Question can be answered with a single sentence from the knowledge base.
+- Normal Difficulty: Focus on simple inference and understanding. Question may require connecting 2-3 sentences from the knowledge base.
+- Hard Difficulty: Focus on applied knowledge and deeper understanding. It may be a mini-scenario that requires synthesizing multiple pieces of information from the knowledge base.
+- Hell Difficulty: Give a less clueful scenario that requires critical thinking and deep understanding. It may involve edge cases or require understanding nuances.
+
 Knowledge base:
 {markdown_text}
 """.strip()
 
+    print(prompt)  # Debug log for prompt
     response = requests.post(
         'https://api.openai.com/v1/responses',
         headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
@@ -372,7 +390,7 @@ def start_battle():
     try:
         questions = []
         for diff in DIFFICULTY_ORDER:
-            qs = _generate_questions_for_mode(markdown_text, diff, counts[diff], api_key)
+            qs = _generate_questions_for_mode(markdown_text, diff, counts[diff], api_key, all_counts=counts)
             questions.extend(qs)
 
         if len(questions) < max(3, question_count // 2):
