@@ -3,119 +3,123 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Monster Quiz Battle</title>
+  <title>Monster Battle</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-900 text-white min-h-screen p-6">
   <div class="max-w-4xl mx-auto">
-    <div class="flex justify-between items-center mb-6">
-      <h1 class="text-3xl font-bold">⚔️ Monster Quiz Battle</h1>
-      <a href="{{ url_for('learning.index') }}" class="px-4 py-2 rounded bg-slate-700 hover:bg-slate-600">Back</a>
+    <div class="flex justify-between mb-5">
+      <h1 class="text-3xl font-bold">⚔️ Monster Attack</h1>
+      <a href="{{ url_for('learning.index') }}" class="px-4 py-2 bg-slate-700 rounded">Exit</a>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-      <div class="bg-slate-800 rounded-xl p-4">
-        <div class="text-sm text-slate-400">Hero HP</div>
-        <div id="heroHpText" class="text-xl font-bold mb-2">100 / 100</div>
-        <div class="w-full bg-slate-700 rounded h-3"><div id="heroHpBar" class="bg-emerald-500 h-3 rounded" style="width:100%"></div></div>
+      <div class="bg-slate-800 p-4 rounded">
+        <div class="text-slate-400 text-sm">Your HP</div>
+        <div id="hpText" class="text-2xl font-bold">100</div>
+        <div class="h-3 bg-slate-700 rounded"><div id="hpBar" class="h-3 bg-emerald-500 rounded" style="width:100%"></div></div>
       </div>
-      <div class="bg-slate-800 rounded-xl p-4">
-        <div class="text-sm text-slate-400">Monster HP</div>
-        <div id="monsterHpText" class="text-xl font-bold mb-2">100 / 100</div>
-        <div class="w-full bg-slate-700 rounded h-3"><div id="monsterHpBar" class="bg-rose-500 h-3 rounded" style="width:100%"></div></div>
+      <div class="bg-slate-800 p-4 rounded">
+        <div class="text-slate-400 text-sm">Monster</div>
+        <div id="monsterText" class="text-2xl font-bold">-</div>
+        <div id="progressText" class="text-slate-300 text-sm mt-1">-</div>
       </div>
     </div>
 
-    <div class="bg-slate-800 rounded-xl p-5 mb-4">
+    <div class="bg-slate-800 p-5 rounded">
       <div id="meta" class="text-xs text-amber-300 mb-2"></div>
       <h2 id="question" class="text-lg font-semibold"></h2>
       <div id="choices" class="grid grid-cols-1 gap-2 mt-4"></div>
       <div id="feedback" class="mt-3 text-sm"></div>
-    </div>
-
-    <div class="flex gap-2">
-      <button onclick="loadBattle()" class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-500">Load Questions</button>
-      <button onclick="nextQuestion()" class="px-4 py-2 rounded bg-purple-600 hover:bg-purple-500">Next</button>
+      <div class="mt-4">
+        <button id="nextBtn" onclick="loadState()" class="hidden px-4 py-2 bg-purple-600 rounded">Next Question</button>
+      </div>
     </div>
   </div>
 
   <script>
-    let questions = [];
-    let idx = 0;
-    let heroHp = 100;
-    let monsterHp = 100;
+    const sessionId = '{{ session_id }}';
 
-    function renderHp() {
-      document.getElementById('heroHpText').textContent = `${heroHp} / 100`;
-      document.getElementById('monsterHpText').textContent = `${monsterHp} / 100`;
-      document.getElementById('heroHpBar').style.width = `${heroHp}%`;
-      document.getElementById('monsterHpBar').style.width = `${monsterHp}%`;
+    function setHp(hp) {
+      document.getElementById('hpText').textContent = hp;
+      document.getElementById('hpBar').style.width = `${hp}%`;
     }
 
-    function renderQuestion() {
-      const q = questions[idx];
-      if (!q) {
-        document.getElementById('question').textContent = 'No question loaded.';
-        document.getElementById('choices').innerHTML = '';
-        return;
-      }
-      document.getElementById('meta').textContent = `Course: ${q.course_title} | Topic: ${q.topic_name || '-'} | Type: ${q.question_type}`;
-      document.getElementById('question').textContent = q.question;
+    function renderState(data) {
+      document.getElementById('monsterText').textContent = `${data.monster_name} (${data.mode.toUpperCase()})`;
+      document.getElementById('progressText').textContent = `Question ${data.progress.current}/${data.progress.total}`;
+      document.getElementById('meta').textContent = `Course: ${data.question.course_title} | Topic: ${data.question.topic_name || '-'}`;
+      document.getElementById('question').textContent = data.question.question;
+      setHp(data.player_hp);
       document.getElementById('feedback').textContent = '';
-      const choicesEl = document.getElementById('choices');
-      choicesEl.innerHTML = '';
-      q.choices.forEach((c, i) => {
-        const btn = document.createElement('button');
-        btn.className = 'text-left px-4 py-3 rounded bg-slate-700 hover:bg-slate-600';
-        btn.textContent = `${String.fromCharCode(65+i)}. ${c}`;
-        btn.onclick = () => answer(i);
-        choicesEl.appendChild(btn);
+      document.getElementById('nextBtn').classList.add('hidden');
+
+      const holder = document.getElementById('choices');
+      holder.innerHTML = '';
+      data.question.choices.forEach((c, i) => {
+        const b = document.createElement('button');
+        b.className = 'choice-btn text-left px-4 py-3 rounded bg-slate-700 hover:bg-slate-600';
+        b.textContent = `${String.fromCharCode(65+i)}. ${c}`;
+        b.onclick = () => answer(i, b);
+        holder.appendChild(b);
       });
     }
 
-    function answer(choiceIndex) {
-      const q = questions[idx];
-      if (!q) return;
-      const feedback = document.getElementById('feedback');
-      if (choiceIndex === q.answer_index) {
-        monsterHp = Math.max(0, monsterHp - 20);
-        feedback.textContent = `✅ Correct! ${q.explanation || ''}`;
-        feedback.className = 'mt-3 text-sm text-emerald-300';
-      } else {
-        heroHp = Math.max(0, heroHp - 20);
-        feedback.textContent = `❌ Wrong. ${q.explanation || ''}`;
-        feedback.className = 'mt-3 text-sm text-rose-300';
-      }
-      renderHp();
-      if (monsterHp === 0) {
-        feedback.textContent += ' 🎉 You defeated the monster!';
-      } else if (heroHp === 0) {
-        feedback.textContent += ' 💀 You were defeated.';
-      }
-    }
-
-    function nextQuestion() {
-      if (!questions.length) return;
-      idx = (idx + 1) % questions.length;
-      renderQuestion();
-    }
-
-    function loadBattle() {
-      fetch('{{ url_for("learning.battle_questions") }}?count=9')
-        .then(r => r.json().then(data => ({ status: r.status, data })))
+    function loadState() {
+      fetch(`/learning/api/battle_state/${sessionId}`)
+        .then(r => r.json().then(data => ({status:r.status,data})))
         .then(({status, data}) => {
           if (status >= 400 || !data.success) {
-            alert(data.error || 'Failed to load questions');
+            window.location.href = '/learning/';
             return;
           }
-          questions = data.questions || [];
-          idx = 0;
-          heroHp = 100;
-          monsterHp = 100;
-          renderHp();
-          renderQuestion();
+          renderState(data);
         });
     }
+
+    function answer(choiceIndex, btn) {
+      fetch(`/learning/api/battle_answer/${sessionId}`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({choice_index: choiceIndex})
+      })
+      .then(r => r.json())
+      .then(data => {
+        const fb = document.getElementById('feedback');
+        if (!data.success) {
+          fb.textContent = data.error || 'Error';
+          fb.className = 'mt-3 text-sm text-rose-300';
+          return;
+        }
+        if (data.dead) {
+          alert(data.message || 'You died.');
+          window.location.href = data.redirect_url || '/learning/';
+          return;
+        }
+        if (data.completed) {
+          alert(data.message || 'Victory!');
+          window.location.href = '/learning/';
+          return;
+        }
+
+        if (data.correct) {
+          fb.textContent = '✅ Correct! You can go next.';
+          fb.className = 'mt-3 text-sm text-emerald-300';
+          document.querySelectorAll('.choice-btn').forEach(x => x.disabled = true);
+          btn.className = 'choice-btn text-left px-4 py-3 rounded bg-emerald-600';
+          document.getElementById('nextBtn').classList.remove('hidden');
+          return;
+        }
+
+        // wrong answer: red + lose hp + must retry same question
+        fb.textContent = data.message || 'Wrong answer. Try again.';
+        fb.className = 'mt-3 text-sm text-rose-300';
+        btn.className = 'choice-btn text-left px-4 py-3 rounded bg-rose-700';
+        setHp(data.player_hp || 0);
+      });
+    }
+
+    loadState();
   </script>
 </body>
 </html>

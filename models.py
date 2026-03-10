@@ -28,24 +28,28 @@ class Bubble(db.Model):
     include_in_random = db.Column(db.Boolean, default=True)
 
 
-class GeneratedQuestion(db.Model):
+class PlayerProfile(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    level = db.Column(db.Integer, default=1, nullable=False)
+    exp_current = db.Column(db.Float, default=0.0, nullable=False)
+    exp_total = db.Column(db.Float, default=0.0, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=True)
-    course_title = db.Column(db.String(150), nullable=False)
-    topic_name = db.Column(db.String(150), nullable=True)
 
-    question_type = db.Column(db.String(40), nullable=False, default='general_knowledge')
-    question_text = db.Column(db.Text, nullable=False)
+class Monster(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False, unique=True)
+    description = db.Column(db.Text, nullable=False)
 
-    choice_a = db.Column(db.Text, nullable=False)
-    choice_b = db.Column(db.Text, nullable=False)
-    choice_c = db.Column(db.Text, nullable=False)
-    choice_d = db.Column(db.Text, nullable=False)
+    ratio_easy = db.Column(db.Integer, default=25, nullable=False)
+    ratio_normal = db.Column(db.Integer, default=25, nullable=False)
+    ratio_hard = db.Column(db.Integer, default=25, nullable=False)
+    ratio_hell = db.Column(db.Integer, default=25, nullable=False)
 
-    answer_index = db.Column(db.Integer, nullable=False, default=0)
-    explanation = db.Column(db.Text, nullable=True)
+    damage_easy = db.Column(db.Integer, default=1, nullable=False)
+    damage_normal = db.Column(db.Integer, default=2, nullable=False)
+    damage_hard = db.Column(db.Integer, default=4, nullable=False)
+    damage_hell = db.Column(db.Integer, default=6, nullable=False)
 
 
 class Task(db.Model):
