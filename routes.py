@@ -1,5 +1,6 @@
 import os
 import random
+from sqlalchemy import text
 from sqlalchemy.sql.expression import func
 from flask import Blueprint, render_template, request, redirect, url_for, jsonify, current_app, Response
 from werkzeug.utils import secure_filename
@@ -14,12 +15,12 @@ def _has_include_column():
     global _cached_include_check
     if _cached_include_check is None:
         try:
-            info = db.session.execute("PRAGMA table_info(bubble)").fetchall()
+            info = db.session.execute(text("PRAGMA table_info(bubble)")).fetchall()
             exists = any(r[1] == 'include_in_random' for r in info)
             if not exists:
                 # try to add column on the fly
                 try:
-                    db.session.execute("ALTER TABLE bubble ADD COLUMN include_in_random BOOLEAN DEFAULT 1")
+                    db.session.execute(text("ALTER TABLE bubble ADD COLUMN include_in_random BOOLEAN DEFAULT 1"))
                     db.session.commit()
                     exists = True
                     print('runtime migration: added include_in_random')
