@@ -23,6 +23,7 @@
         <div class="text-slate-400 text-sm">Monster</div>
         <div id="monsterText" class="text-2xl font-bold">-</div>
         <div id="progressText" class="text-slate-300 text-sm mt-1">-</div>
+        <div id="monsterDesc" class="text-slate-400 text-xs mt-1">-</div>
       </div>
     </div>
 
@@ -48,6 +49,7 @@
     function renderState(data) {
       document.getElementById('monsterText').textContent = `${data.monster_name} (${data.mode.toUpperCase()})`;
       document.getElementById('progressText').textContent = `Question ${data.progress.current}/${data.progress.total}`;
+      document.getElementById('monsterDesc').textContent = data.monster_description || '-';
       document.getElementById('meta').textContent = `Course: ${data.question.course_title} | Topic: ${data.question.topic_name || '-'}`;
       document.getElementById('question').textContent = data.question.question;
       setHp(data.player_hp);

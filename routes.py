@@ -15,10 +15,10 @@ learning_bp = Blueprint('learning', __name__, url_prefix='/learning')
 
 BATTLE_SESSIONS = {}
 MODE_CONFIG = {
-    'easy': {'count': 5, 'exp': 0.5},
-    'normal': {'count': 8, 'exp': 1.0},
-    'hard': {'count': 10, 'exp': 2.0},
-    'hell': {'count': 12, 'exp': 3.0},
+    'easy': {'exp': 0.5},
+    'normal': {'exp': 1.0},
+    'hard': {'exp': 2.0},
+    'hell': {'exp': 3.0},
 }
 
 _cached_include_check = None
@@ -109,9 +109,12 @@ def _extract_json_array(text_value):
     return []
 
 
-def _build_random_markdown(min_courses=1, max_bubbles_per_course=3):
+def _build_random_markdown(min_courses=1, max_bubbles_per_course=3, selected_course_ids=None):
     courses = Course.query.join(Topic).join(Bubble)
     courses = courses.filter(Bubble.include_in_random.is_(True)).distinct().all() if _has_include_column() else courses.distinct().all()
+    if selected_course_ids:
+        selected_set = {int(cid) for cid in selected_course_ids}
+        courses = [c for c in courses if c.id in selected_set]
     if not courses:
         return ''
 
@@ -251,13 +254,18 @@ def add_monster():
 def start_battle():
     data = request.get_json() or {}
     mode = (data.get('mode') or 'normal').lower()
-    monster_id = data.get('monster_id', type=int) if hasattr(data, 'get') else None
+    question_count = int(data.get('question_count', 8) or 8)
+    question_count = max(3, min(question_count, 30))
+    course_ids = data.get('course_ids') or []
     if mode not in MODE_CONFIG:
         return jsonify({'success': False, 'error': 'invalid mode'}), 400
 
-    monster = Monster.query.get_or_404(monster_id)
-    count = MODE_CONFIG[mode]['count']
-    markdown_text = _build_random_markdown(min_courses=2, max_bubbles_per_course=4)
+    monsters = Monster.query.all()
+    if not monsters:
+        return jsonify({'success': False, 'error': 'No monsters available.'}), 400
+    monster = random.choice(monsters)
+
+    markdown_text = _build_random_markdown(min_courses=2, max_bubbles_per_course=4, selected_course_ids=course_ids)
     if not markdown_text:
         return jsonify({'success': False, 'error': 'No markdown content available.'}), 400
 
@@ -265,12 +273,12 @@ def start_battle():
     if not api_key:
         return jsonify({'success': False, 'error': 'OPENAI_API_KEY is not configured on server'}), 500
 
-    answer_pattern = [random.randint(0, 3) for _ in range(count)]
+    answer_pattern = [random.randint(0, 3) for _ in range(question_count)]
     mode_instruction = _build_mode_instruction(mode)
     prompt = f"""
 You are generating quiz questions for a monster battle.
 Language: English only.
-Count: {count}
+Count: {question_count}
 Mode: {mode.upper()}
 Mode guidance: {mode_instruction}
 
@@ -311,6 +319,7 @@ Knowledge base:
             'mode': mode,
             'monster_id': monster.id,
             'monster_name': monster.name,
+            'monster_description': monster.description,
             'hp': 100,
             'questions': questions,
             'current': 0,
@@ -339,6 +348,7 @@ def battle_state(session_id):
     return jsonify({
         'success': True,
         'monster_name': s['monster_name'],
+        'monster_description': s.get('monster_description', ''),
         'mode': s['mode'],
         'player_hp': s['hp'],
         'progress': {'current': s['current'] + 1, 'total': len(s['questions'])},

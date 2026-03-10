@@ -114,21 +114,26 @@
         <div class="bg-white p-8 rounded-2xl w-full max-w-xl">
             <h2 class="text-2xl font-bold mb-5">Start Monster Battle</h2>
             <div class="space-y-3">
-                <label class="text-sm">Select Monster</label>
-                <select id="battleMonster" class="w-full border p-2 rounded">
-                    {% for m in monsters %}
-                    <option value="{{ m.id }}" data-desc="{{ m.description }}">{{ m.name }} | Range E{{m.ratio_easy}} N{{m.ratio_normal}} H{{m.ratio_hard}} X{{m.ratio_hell}}</option>
-                    {% endfor %}
-                </select>
-                <p id="monsterDesc" class="text-xs text-slate-500"></p>
+                <p class="text-xs text-slate-500">Monster will be random in each run.</p>
 
                 <label class="text-sm">Difficulty</label>
                 <select id="battleMode" class="w-full border p-2 rounded">
-                    <option value="easy">Easy (5 Q)</option>
-                    <option value="normal" selected>Normal (8 Q)</option>
-                    <option value="hard">Hard (10 Q)</option>
-                    <option value="hell">Hell (12 Q)</option>
+                    <option value="easy">Easy</option>
+                    <option value="normal" selected>Normal</option>
+                    <option value="hard">Hard</option>
+                    <option value="hell">Hell</option>
                 </select>
+
+                <label class="text-sm">Question Count</label>
+                <input id="battleQuestionCount" type="number" min="3" max="30" value="8" class="w-full border p-2 rounded">
+
+                <label class="text-sm">Select Content (Courses)</label>
+                <select id="battleCourses" multiple class="w-full border p-2 rounded h-40">
+                    {% for c in courses %}
+                    <option value="{{ c.id }}">{{ c.title }}</option>
+                    {% endfor %}
+                </select>
+                <p class="text-xs text-slate-500">เลือกได้หลายวิชา (ถ้าไม่เลือกจะสุ่มจากทุกวิชา)</p>
             </div>
             <p id="battleSetupStatus" class="text-sm text-slate-500 mt-3"></p>
             <div class="flex justify-end gap-2 mt-6">
@@ -215,26 +220,28 @@
             document.getElementById('editCourseModal').classList.remove('hidden');
         }
 
-        function showMonsterDesc() {
-            const select = document.getElementById('battleMonster');
-            const opt = select.options[select.selectedIndex];
-            document.getElementById('monsterDesc').textContent = opt ? opt.dataset.desc : '';
-        }
-
         function startBattle() {
             const status = document.getElementById('battleSetupStatus');
-            const monster_id = Number(document.getElementById('battleMonster').value);
             const mode = document.getElementById('battleMode').value;
+            const question_count = Number(document.getElementById('battleQuestionCount').value || 8);
+            const courseSelect = document.getElementById('battleCourses');
+            const course_ids = Array.from(courseSelect.selectedOptions).map(o => Number(o.value));
+
             status.textContent = 'Generating questions for battle...';
             fetch('{{ url_for("learning.start_battle") }}', {
-                method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ monster_id, mode })
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ mode, question_count, course_ids })
             })
             .then(r => r.json().then(data => ({status: r.status, data})))
             .then(({status: code, data}) => {
-                if (code >= 400 || !data.success) { status.textContent = data.error || 'Failed to start battle'; return; }
+                if (code >= 400 || !data.success) {
+                    status.textContent = data.error || `Start battle failed (HTTP ${code})`;
+                    return;
+                }
                 window.location.href = data.battle_url;
             })
-            .catch(() => status.textContent = 'Server connection failed');
+            .catch((err) => status.textContent = `Server connection failed: ${err.message}`);
         }
 
         function addMonster() {
@@ -263,8 +270,6 @@
             .catch(() => status.textContent = 'Server connection failed');
         }
 
-        showMonsterDesc();
-        document.getElementById('battleMonster')?.addEventListener('change', showMonsterDesc);
     </script>
 </body>
 </html>
