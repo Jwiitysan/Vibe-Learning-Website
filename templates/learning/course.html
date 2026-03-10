@@ -83,7 +83,10 @@
                 {% if topic.section_id == section.id %}
                 <li data-id="{{ topic.id }}" data-section-id="{{ section.id }}" class="group relative cursor-grab bg-transparent hover:bg-[#3e2b1f] rounded-lg transition ml-3 {% if active_topic and topic.id == active_topic.id %} bg-[#4a3320] border-[#7a593e] shadow-inner font-bold {% endif %}">
                     <div class="flex items-center justify-between">
-                        <a href="{{ url_for('learning.course_detail', course_id=course.id) }}?topic_id={{ topic.id }}" 
+                        <button type="button" class="topic-drag-handle text-[#8c6d53] hover:text-amber-300 transition z-10 p-2 cursor-grab" title="ลากเพื่อย้ายหมวด">
+                            <i class="fa-solid fa-grip-vertical text-sm"></i>
+                        </button>
+                        <a href="{{ url_for('learning.course_detail', course_id=course.id) }}?topic_id={{ topic.id }}" draggable="false"
                            class="block w-full p-3 text-gray-300 hover:text-amber-100 {% if active_topic and topic.id == active_topic.id %} text-amber-300 {% endif %}">
                             <i class="fa-solid {% if active_topic and topic.id == active_topic.id %}fa-location-dot animate-bounce{% else %}fa-map-pin{% endif %} mr-2 text-sm opacity-70"></i> 
                             {{ topic.name }}
@@ -110,7 +113,10 @@
                 {% if topic.section_id is none %}
                 <li data-id="{{ topic.id }}" data-section-id="none" class="group relative cursor-grab bg-transparent hover:bg-[#3e2b1f] rounded-lg transition {% if active_topic and topic.id == active_topic.id %} bg-[#4a3320] border-[#7a593e] shadow-inner font-bold {% endif %}">
                     <div class="flex items-center justify-between">
-                        <a href="{{ url_for('learning.course_detail', course_id=course.id) }}?topic_id={{ topic.id }}" 
+                        <button type="button" class="topic-drag-handle text-[#8c6d53] hover:text-amber-300 transition z-10 p-2 cursor-grab" title="ลากเพื่อย้ายหมวด">
+                            <i class="fa-solid fa-grip-vertical text-sm"></i>
+                        </button>
+                        <a href="{{ url_for('learning.course_detail', course_id=course.id) }}?topic_id={{ topic.id }}" draggable="false"
                            class="block w-full p-3 text-gray-300 hover:text-amber-100 {% if active_topic and topic.id == active_topic.id %} text-amber-300 {% endif %}">
                             <i class="fa-solid {% if active_topic and topic.id == active_topic.id %}fa-location-dot animate-bounce{% else %}fa-map-pin{% endif %} mr-2 text-sm opacity-70"></i> 
                             {{ topic.name }}
@@ -349,6 +355,9 @@
             animation: 150,
             filter: '.section-header',  // DON'T drag section headers
             draggable: 'li[data-id]',   // Only drag items with data-id
+            handle: '.topic-drag-handle',
+            forceFallback: true,
+            fallbackTolerance: 3,
             ghostClass: 'opacity-50 bg-amber-600',
             onEnd: function(evt) {
                 const updates = [];
