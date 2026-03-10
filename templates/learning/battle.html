@@ -47,10 +47,10 @@
     }
 
     function renderState(data) {
-      document.getElementById('monsterText').textContent = `${data.monster_name} (${data.mode.toUpperCase()})`;
+      document.getElementById('monsterText').textContent = `${data.monster_name}`;
       document.getElementById('progressText').textContent = `Question ${data.progress.current}/${data.progress.total}`;
       document.getElementById('monsterDesc').textContent = data.monster_description || '-';
-      document.getElementById('meta').textContent = `Course: ${data.question.course_title} | Topic: ${data.question.topic_name || '-'}`;
+      document.getElementById('meta').textContent = `Course: ${data.question.course_title} | Topic: ${data.question.topic_name || '-'} | Difficulty: ${(data.question.difficulty || 'normal').toUpperCase()}`;
       document.getElementById('question').textContent = data.question.question;
       setHp(data.player_hp);
       document.getElementById('feedback').textContent = '';
