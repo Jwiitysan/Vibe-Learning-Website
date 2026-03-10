@@ -32,6 +32,14 @@ def _has_include_column():
     return _cached_include_check
 
 
+def _uncensored_bubble_query():
+    """Return a Bubble query that includes only content not censored in course.html."""
+    q = Bubble.query
+    if _has_include_column():
+        q = q.filter(Bubble.include_in_random.is_(True))
+    return q
+
+
 @learning_bp.route('/')
 def index():
     courses = Course.query.all()
@@ -40,21 +48,14 @@ def index():
     
     # 🎲 Logic: Random Knowledge Discovery (คงไว้)
     random_knowledge = []
-    if courses:
-        # always show up to 5 knowledge cards; if fewer courses exist, show all
-        num_to_pick = min(5, len(courses))
-        sampled_courses = random.sample(courses, num_to_pick)
-        for course in sampled_courses:
-            q = Bubble.query.join(Topic).filter(Topic.course_id == course.id)
-            if _has_include_column():
-                q = q.filter(Bubble.include_in_random == True)
-            bubble = q.order_by(func.random()).first()
-            if bubble:
-                random_knowledge.append({
-                    'course_title': course.title,
-                    'topic_name': bubble.topic.name,
-                    'content': bubble.content
-                })
+    # Daily Knowledge ต้องเลือกเฉพาะ bubble ที่ไม่ถูก censor ในหน้า course.html
+    bubbles = _uncensored_bubble_query().join(Topic).join(Course).order_by(func.random()).limit(5).all()
+    for bubble in bubbles:
+        random_knowledge.append({
+            'course_title': bubble.topic.course.title,
+            'topic_name': bubble.topic.name,
+            'content': bubble.content
+        })
 
     return render_template('learning/index.html', 
                            courses=courses, 
@@ -79,7 +80,9 @@ def create_course():
 # --- สร้าง Markdown แบบสุ่มทั้งวิชาและจำนวนเนื้อหา ---
 @learning_bp.route('/generate_markdown')
 def generate_markdown():
-    courses = Course.query.all()
+    # สร้าง markdown จากวิชาที่มีเนื้อหา uncensored เท่านั้น
+    courses = Course.query.join(Topic).join(Bubble)
+    courses = courses.filter(Bubble.include_in_random.is_(True)).distinct().all() if _has_include_column() else courses.distinct().all()
     lines = []
     if courses:
         # ตัดสินใจสุ่มจำนวนวิชา (อย่างน้อย 5 เมื่อมีมากพอ)
@@ -91,9 +94,7 @@ def generate_markdown():
         for course in sampled:
             lines.append(f"## {course.title}")
             # ดึงทุก Bubble ของวิชานั้นที่เปิดใช้งานสำหรับสุ่ม
-            q = Bubble.query.join(Topic).filter(Topic.course_id == course.id)
-            if _has_include_column():
-                q = q.filter(Bubble.include_in_random == True)
+            q = _uncensored_bubble_query().join(Topic).filter(Topic.course_id == course.id)
             bubbles = q.all()
             if bubbles:
                 # สุ่มจำนวนบับเบิ้ล (1-3 หรือไม่เกินจำนวนที่มี)
