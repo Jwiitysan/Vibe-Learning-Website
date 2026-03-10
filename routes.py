@@ -1,5 +1,7 @@
 import os
 import random
+import json
+import requests
 from sqlalchemy import text
 from sqlalchemy.sql.expression import func
 from flask import Blueprint, render_template, request, redirect, url_for, jsonify, current_app, Response
@@ -39,6 +41,27 @@ def _uncensored_bubble_query():
     if _has_include_column():
         q = q.filter(Bubble.include_in_random.is_(True))
     return q
+
+
+def _extract_json_array(text_value):
+    """Try to parse a JSON array from model output."""
+    if not text_value:
+        return []
+
+    try:
+        parsed = json.loads(text_value)
+        return parsed if isinstance(parsed, list) else []
+    except json.JSONDecodeError:
+        start = text_value.find('[')
+        end = text_value.rfind(']')
+        if start != -1 and end != -1 and end > start:
+            snippet = text_value[start:end + 1]
+            try:
+                parsed = json.loads(snippet)
+                return parsed if isinstance(parsed, list) else []
+            except json.JSONDecodeError:
+                return []
+    return []
 
 
 @learning_bp.route('/')
@@ -125,6 +148,76 @@ def generate_markdown():
     markdown = "\n".join(lines)
     # ส่งกลับเป็น JSON เพื่อให้ฝั่ง client รับไปใช้งาน
     return jsonify({'markdown': markdown})
+
+
+@learning_bp.route('/api/generate_questions', methods=['POST'])
+def generate_questions():
+    data = request.get_json() or {}
+    markdown_text = (data.get('markdown') or '').strip()
+    question_count = max(1, min(int(data.get('count', 5)), 20))
+    difficulty = (data.get('difficulty') or 'medium').strip().lower()
+    language = (data.get('language') or 'th').strip().lower()
+
+    if not markdown_text:
+        return jsonify({'success': False, 'error': 'Markdown content is required.'}), 400
+
+    api_key = os.environ.get('OPENAI_API_KEY')
+    if not api_key:
+        return jsonify({'success': False, 'error': 'OPENAI_API_KEY is not configured on the server.'}), 500
+
+    model = os.environ.get('OPENAI_MODEL', 'gpt-4o-mini')
+    lang_name = 'Thai' if language == 'th' else 'English'
+
+    prompt = f"""
+You are an expert tutor.
+Create exactly {question_count} multiple-choice questions from the markdown content below.
+
+Rules:
+- Difficulty: {difficulty}
+- Language: {lang_name}
+- Ground every question in the provided markdown only.
+- Return ONLY a JSON array. No markdown, no explanation.
+- Each item format:
+  {{
+    "question": "...",
+    "choices": ["A...", "B...", "C...", "D..."],
+    "answer_index": 0,
+    "explanation": "..."
+  }}
+
+Markdown input:
+{markdown_text}
+""".strip()
+
+    try:
+        response = requests.post(
+            'https://api.openai.com/v1/responses',
+            headers={
+                'Authorization': f'Bearer {api_key}',
+                'Content-Type': 'application/json'
+            },
+            json={
+                'model': model,
+                'input': prompt,
+                'temperature': 0.7
+            },
+            timeout=45
+        )
+        response.raise_for_status()
+        result = response.json()
+        output_text = result.get('output_text', '')
+        questions = _extract_json_array(output_text)
+
+        if not questions:
+            return jsonify({
+                'success': False,
+                'error': 'Model response was not valid JSON question array.',
+                'raw_output': output_text
+            }), 502
+
+        return jsonify({'success': True, 'questions': questions, 'raw_output': output_text})
+    except requests.RequestException as e:
+        return jsonify({'success': False, 'error': f'OpenAI request failed: {e}'}), 502
 
 @learning_bp.route('/<int:course_id>')
 def course_detail(course_id):
