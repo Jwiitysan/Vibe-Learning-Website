@@ -66,6 +66,9 @@
                        class="bg-blue-600 text-white px-6 py-2.5 rounded-xl hover:bg-blue-500 transition shadow-lg flex items-center font-bold">
                         <i class="fa-solid fa-wand-magic-sparkles mr-2"></i> Generate Questions
                     </button>
+                    <a href="{{ url_for('learning.battle_page') }}" class="bg-purple-700 text-white px-6 py-2.5 rounded-xl hover:bg-purple-600 transition shadow-lg flex items-center font-bold">
+                        <i class="fa-solid fa-dragon mr-2"></i> Monster Battle
+                    </a>
                 </div>
             </div>
 
@@ -168,10 +171,7 @@
                     <option value="medium" selected>medium</option>
                     <option value="hard">hard</option>
                 </select>
-                <select id="questionLanguage" class="border rounded p-2">
-                    <option value="th" selected>ไทย</option>
-                    <option value="en">English</option>
-                </select>
+                <div class="border rounded p-2 bg-slate-50 text-sm text-slate-600 flex items-center">Language: English (fixed)</div>
             </div>
             <textarea id="questionMarkdownInput" class="w-full h-40 border rounded p-2 mb-3" placeholder="วาง markdown ที่นี่ หรือกด Load Random Markdown"></textarea>
             <div class="flex flex-wrap gap-2 mb-3">
@@ -265,8 +265,7 @@
             const markdown = document.getElementById('questionMarkdownInput').value.trim();
             const count = Number(document.getElementById('questionCount').value || 5);
             const difficulty = document.getElementById('questionDifficulty').value;
-            const language = document.getElementById('questionLanguage').value;
-            const outputEl = document.getElementById('questionOutput');
+                        const outputEl = document.getElementById('questionOutput');
             const statusEl = document.getElementById('questionStatus');
 
             if (!markdown) {
@@ -280,7 +279,7 @@
             fetch('{{ url_for("learning.generate_questions") }}', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ markdown, count, difficulty, language })
+                body: JSON.stringify({ markdown, count, difficulty })
             })
             .then(r => r.json().then(data => ({ status: r.status, data })))
             .then(({ status, data }) => {
