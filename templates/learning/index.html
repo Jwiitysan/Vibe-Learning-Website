@@ -13,14 +13,22 @@
         .course-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.05); }
         .discovery-box { background-color: #fff; border: 2px dashed #d4c4a8; }
         .ql-editor { padding: 0 !important; min-height: auto !important; }
-        /* สไตล์ปุ่มหมวดหมู่ที่ถูกเลือก */
         .category-btn.active { background-color: #b45309; color: white; border-color: #b45309; }
     </style>
 </head>
 <body class="p-8">
 
     <div class="max-w-7xl mx-auto">
-        
+        <div class="mb-6 bg-white border border-amber-200 rounded-xl p-4 flex flex-wrap items-center gap-4">
+            <div class="text-xl font-bold text-[#3e2723]">🧙 Player Status</div>
+            <div class="text-sm text-slate-600">Level: <b>{{ profile.level }}</b></div>
+            <div class="text-sm text-slate-600">EXP: <b>{{ "%.1f"|format(profile.exp_current) }}</b> / {{ exp_to_next }}</div>
+            <div class="w-56 h-2 bg-slate-200 rounded">
+                <div class="h-2 rounded bg-emerald-500" style="width: {{ (profile.exp_current / exp_to_next * 100) if exp_to_next else 0 }}%"></div>
+            </div>
+            <div class="text-xs text-slate-500">Total EXP: {{ "%.1f"|format(profile.exp_total) }}</div>
+        </div>
+
         {% if random_knowledge %}
         <div class="mb-12">
             <div class="flex items-center space-x-3 mb-6">
@@ -34,7 +42,6 @@
                         <span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter">{{ item.course_title }}</span>
                         <span class="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter">{{ item.topic_name }}</span>
                     </div>
-                    <!-- removed line-clamp so full content is visible; if very long, allow scroll -->
                     <div class="text-gray-700 text-sm ql-editor max-h-40 overflow-y-auto">{{ item.content | safe }}</div>
                 </div>
                 {% endfor %}
@@ -46,33 +53,28 @@
         <div class="flex flex-col space-y-6 mb-10">
             <div class="flex flex-col md:flex-row justify-between items-center gap-4">
                 <h1 class="text-4xl font-bold text-[#3e2723]"><i class="fa-solid fa-map-marked-alt mr-4 text-amber-700"></i> My Journey Map</h1>
-                
+
                 <div class="flex w-full md:w-auto items-center space-x-3">
                     <div class="relative flex-1 md:w-64">
                         <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                        <input type="text" id="courseSearch" onkeyup="filterContent()" placeholder="ค้นชื่อวิชา..." 
-                               class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#d4c4a8] bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-sm">
+                        <input type="text" id="courseSearch" onkeyup="filterContent()" placeholder="ค้นชื่อวิชา..." class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#d4c4a8] bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-sm">
                     </div>
-                    <button onclick="document.getElementById('addCourseModal').classList.remove('hidden')" 
-                            class="bg-amber-700 text-white px-6 py-2.5 rounded-xl hover:bg-amber-600 transition shadow-lg flex items-center font-bold">
+                    <button onclick="document.getElementById('addCourseModal').classList.remove('hidden')" class="bg-amber-700 text-white px-6 py-2.5 rounded-xl hover:bg-amber-600 transition shadow-lg flex items-center font-bold">
                         <i class="fa-solid fa-plus mr-2"></i> สำรวจใหม่
                     </button>
-                    <!-- ปุ่มสร้าง Markdown แบบสุ่มทั้งวิชาและจำนวนเนื้อหา (แสดงใน modal) -->
-                    <button onclick="fetchMarkdown()" 
-                       class="bg-green-600 text-white px-6 py-2.5 rounded-xl hover:bg-green-500 transition shadow-lg flex items-center font-bold">
-                        <i class="fa-solid fa-file-lines mr-2"></i> สร้าง Markdown
+                    <button onclick="document.getElementById('battleSetupModal').classList.remove('hidden')" class="bg-purple-700 text-white px-6 py-2.5 rounded-xl hover:bg-purple-600 transition shadow-lg flex items-center font-bold">
+                        <i class="fa-solid fa-dragon mr-2"></i> Monster Battle
+                    </button>
+                    <button onclick="document.getElementById('addMonsterModal').classList.remove('hidden')" class="bg-blue-700 text-white px-6 py-2.5 rounded-xl hover:bg-blue-600 transition shadow-lg flex items-center font-bold">
+                        <i class="fa-solid fa-skull-crossbones mr-2"></i> Add Monster
                     </button>
                 </div>
             </div>
 
             <div class="flex flex-wrap gap-2 overflow-x-auto pb-2">
-                <button onclick="filterCategory('all', this)" class="category-btn active px-4 py-1.5 rounded-full border border-[#d4c4a8] text-sm font-medium hover:border-amber-700 transition">
-                    ทั้งหมด
-                </button>
+                <button onclick="filterCategory('all', this)" class="category-btn active px-4 py-1.5 rounded-full border border-[#d4c4a8] text-sm font-medium hover:border-amber-700 transition">ทั้งหมด</button>
                 {% for cat in categories %}
-                <button onclick="filterCategory('{{ cat.lower() }}', this)" class="category-btn px-4 py-1.5 rounded-full border border-[#d4c4a8] text-sm font-medium hover:border-amber-700 transition">
-                    {{ cat }}
-                </button>
+                <button onclick="filterCategory('{{ cat.lower() }}', this)" class="category-btn px-4 py-1.5 rounded-full border border-[#d4c4a8] text-sm font-medium hover:border-amber-700 transition">{{ cat }}</button>
                 {% endfor %}
             </div>
         </div>
@@ -87,15 +89,10 @@
                     </div>
                     <div class="p-5">
                         <h3 class="text-lg font-bold text-[#3e2723] mb-2">{{ course.title }}</h3>
-                        <div class="text-xs text-gray-500 flex items-center">
-                            <i class="fa-solid fa-layer-group mr-2"></i> {{ course.topics | length }} Topics Found
-                        </div>
+                        <div class="text-xs text-gray-500 flex items-center"><i class="fa-solid fa-layer-group mr-2"></i> {{ course.topics | length }} Topics Found</div>
                     </div>
                 </a>
-                <!-- edit button overlay -->
-                <button type="button" onclick="openEditCourseModal(this.closest('.course-item'))" class="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 text-amber-700 hover:bg-amber-600 hover:text-white w-9 h-9 rounded-full flex items-center justify-center shadow border border-amber-200 z-10" aria-label="Edit course">
-                    <i class="fa-solid fa-pen text-xs"></i>
-                </button>
+                <button type="button" onclick="openEditCourseModal(this.closest('.course-item'))" class="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 text-amber-700 hover:bg-amber-600 hover:text-white w-9 h-9 rounded-full flex items-center justify-center shadow border border-amber-200 z-10" aria-label="Edit course"><i class="fa-solid fa-pen text-xs"></i></button>
             </div>
             {% endfor %}
         </div>
@@ -106,121 +103,166 @@
         </div>
     </div>
 
+    <div id="battleSetupModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="bg-white p-8 rounded-2xl w-full max-w-xl">
+            <h2 class="text-2xl font-bold mb-5">Start Monster Battle</h2>
+            <div class="space-y-3">
+                <p class="text-xs text-slate-500">Monster will be random in each run.</p>
+
+                <label class="text-sm">Difficulty</label>
+                <select id="battleMode" class="w-full border p-2 rounded">
+                    <option value="easy">Easy</option>
+                    <option value="normal" selected>Normal</option>
+                    <option value="hard">Hard</option>
+                    <option value="hell">Hell</option>
+                </select>
+
+                <label class="text-sm">Question Count</label>
+                <input id="battleQuestionCount" type="number" min="3" max="30" value="8" class="w-full border p-2 rounded">
+
+                <label class="text-sm">Select Content (Courses)</label>
+                <select id="battleCourses" multiple class="w-full border p-2 rounded h-40">
+                    {% for c in courses %}
+                    <option value="{{ c.id }}">{{ c.title }}</option>
+                    {% endfor %}
+                </select>
+                <p class="text-xs text-slate-500">เลือกได้หลายวิชา (ถ้าไม่เลือกจะสุ่มจากทุกวิชา)</p>
+            </div>
+            <p id="battleSetupStatus" class="text-sm text-slate-500 mt-3"></p>
+            <div class="flex justify-end gap-2 mt-6">
+                <button onclick="document.getElementById('battleSetupModal').classList.add('hidden')" class="px-4 py-2 text-gray-400">Cancel</button>
+                <button onclick="startBattle()" class="px-4 py-2 bg-purple-700 text-white rounded">Generate + Start</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="addMonsterModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="bg-white p-8 rounded-2xl w-full max-w-xl">
+            <h2 class="text-2xl font-bold mb-5">Add Monster</h2>
+            <div class="grid grid-cols-2 gap-3">
+                <input id="mName" placeholder="Name" class="border p-2 rounded col-span-2">
+                <textarea id="mDesc" placeholder="Description" class="border p-2 rounded col-span-2"></textarea>
+                <input id="re" type="number" value="25" class="border p-2 rounded" placeholder="ratio easy">
+                <input id="rn" type="number" value="25" class="border p-2 rounded" placeholder="ratio normal">
+                <input id="rh" type="number" value="25" class="border p-2 rounded" placeholder="ratio hard">
+                <input id="rx" type="number" value="25" class="border p-2 rounded" placeholder="ratio hell">
+                <input id="de" type="number" value="1" class="border p-2 rounded" placeholder="dmg easy">
+                <input id="dn" type="number" value="2" class="border p-2 rounded" placeholder="dmg normal">
+                <input id="dh" type="number" value="4" class="border p-2 rounded" placeholder="dmg hard">
+                <input id="dx" type="number" value="6" class="border p-2 rounded" placeholder="dmg hell">
+            </div>
+            <p id="addMonsterStatus" class="text-sm text-slate-500 mt-3"></p>
+            <div class="flex justify-end gap-2 mt-6">
+                <button onclick="document.getElementById('addMonsterModal').classList.add('hidden')" class="px-4 py-2 text-gray-400">Cancel</button>
+                <button onclick="addMonster()" class="px-4 py-2 bg-blue-700 text-white rounded">Save Monster</button>
+            </div>
+        </div>
+    </div>
+
     <div id="addCourseModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
         <form action="{{ url_for('learning.create_course') }}" method="POST" enctype="multipart/form-data" class="bg-white p-8 rounded-2xl w-full max-w-md">
             <h2 class="text-2xl font-bold mb-6">เริ่มการสำรวจใหม่</h2>
             <div class="space-y-4">
                 <input type="text" name="title" placeholder="ชื่อวิชา..." required class="w-full border border-slate-200 p-3 rounded-xl outline-none focus:border-amber-500">
                 <input list="catlist" type="text" name="category" placeholder="หมวดหมู่..." class="w-full border border-slate-200 p-3 rounded-xl outline-none focus:border-amber-500">
-                <datalist id="catlist">
-                    {% for cat in categories %}
-                    <option value="{{ cat }}"></option>
-                    {% endfor %}
-                </datalist>
+                <datalist id="catlist">{% for cat in categories %}<option value="{{ cat }}"></option>{% endfor %}</datalist>
                 <input type="file" name="background_image" class="w-full text-sm">
             </div>
-            <div class="flex justify-end space-x-3 mt-8">
-                <button type="button" onclick="document.getElementById('addCourseModal').classList.add('hidden')" class="px-5 py-2 text-gray-400">ยกเลิก</button>
-                <button type="submit" class="bg-amber-700 text-white px-8 py-2 rounded-xl font-bold">เริ่มเดินทาง</button>
-            </div>
+            <div class="flex justify-end space-x-3 mt-8"><button type="button" onclick="document.getElementById('addCourseModal').classList.add('hidden')" class="px-5 py-2 text-gray-400">ยกเลิก</button><button type="submit" class="bg-amber-700 text-white px-8 py-2 rounded-xl font-bold">เริ่มเดินทาง</button></div>
         </form>
     </div>
-    <!-- edit course modal -->
+
     <div id="editCourseModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
         <form id="editCourseForm" action="{{ url_for('learning.update_course') }}" method="POST" enctype="multipart/form-data" class="bg-white p-8 rounded-2xl w-full max-w-md">
             <h2 class="text-2xl font-bold mb-6">แก้ไขข้อมูลวิชา</h2>
             <input type="hidden" name="id" id="editCourseId">
-            <div class="space-y-4">
-                <input type="text" name="title" id="editCourseTitle" placeholder="ชื่อวิชา..." required class="w-full border border-slate-200 p-3 rounded-xl outline-none focus:border-amber-500">
-                <input list="catlist" type="text" name="category" id="editCourseCategory" placeholder="หมวดหมู่..." class="w-full border border-slate-200 p-3 rounded-xl outline-none focus:border-amber-500">
-                <input type="file" name="background_image" class="w-full text-sm">
-            </div>
-            <div class="flex justify-end space-x-3 mt-8">
-                <button type="button" onclick="document.getElementById('editCourseModal').classList.add('hidden')" class="px-5 py-2 text-gray-400">ยกเลิก</button>
-                <button type="submit" class="bg-blue-600 text-white px-8 py-2 rounded-xl font-bold">บันทึก</button>
-            </div>
+            <div class="space-y-4"><input type="text" name="title" id="editCourseTitle" placeholder="ชื่อวิชา..." required class="w-full border border-slate-200 p-3 rounded-xl outline-none focus:border-amber-500"><input list="catlist" type="text" name="category" id="editCourseCategory" placeholder="หมวดหมู่..." class="w-full border border-slate-200 p-3 rounded-xl outline-none focus:border-amber-500"><input type="file" name="background_image" class="w-full text-sm"></div>
+            <div class="flex justify-end space-x-3 mt-8"><button type="button" onclick="document.getElementById('editCourseModal').classList.add('hidden')" class="px-5 py-2 text-gray-400">ยกเลิก</button><button type="submit" class="bg-blue-600 text-white px-8 py-2 rounded-xl font-bold">บันทึก</button></div>
         </form>
-    </div>
-
-    <!-- modal สำหรับผลลัพธ์ Markdown -->
-    <div id="markdownModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div class="bg-white p-6 rounded-2xl w-full max-w-2xl">
-            <h2 class="text-2xl font-bold mb-4">Generated Markdown</h2>
-            <textarea id="markdownOutput" class="w-full h-64 border rounded p-2"></textarea>
-            <div class="flex justify-end space-x-3 mt-4">
-                <button onclick="copyMarkdown()" class="px-5 py-2 bg-amber-700 text-white rounded">Copy</button>
-                <button onclick="document.getElementById('markdownModal').classList.add('hidden')" class="px-5 py-2 text-gray-400">Close</button>
-            </div>
-        </div>
     </div>
 
     <script>
         let currentCategory = 'all';
 
-        // 🟢 ฟังก์ชัน Filter หมวดหมู่
         function filterCategory(cat, btn) {
             currentCategory = cat;
-            
-            // เปลี่ยนสถานะปุ่ม
             document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            
-            filterContent(); // สั่งกรองเนื้อหาใหม่
+            filterContent();
         }
 
-        // 🟢 ฟังก์ชันกรองเนื้อหา (ทำงานร่วมกันทั้ง Search และ Category)
         function filterContent() {
             const searchText = document.getElementById('courseSearch').value.toLowerCase();
             const items = document.querySelectorAll('.course-item');
             const noResults = document.getElementById('noResults');
             let hasVisibleItems = false;
-
             items.forEach(item => {
                 const title = item.getAttribute('data-title');
                 const category = item.getAttribute('data-category');
-                
-                // ตรวจสอบว่าตรงทั้งหมวดหมู่และคำค้นหาหรือไม่
                 const matchCategory = (currentCategory === 'all' || category === currentCategory);
                 const matchSearch = title.includes(searchText);
-
-                if (matchCategory && matchSearch) {
-                    item.style.display = "";
-                    hasVisibleItems = true;
-                } else {
-                    item.style.display = "none";
-                }
+                if (matchCategory && matchSearch) { item.style.display = ""; hasVisibleItems = true; } else { item.style.display = "none"; }
             });
-
             noResults.style.display = hasVisibleItems ? "none" : "block";
         }
 
-        // 💡 ดึง Markdown จากเซิร์ฟเวอร์และแสดงใน modal
-        function fetchMarkdown() {
-            fetch('{{ url_for("learning.generate_markdown") }}')
-                .then(r => r.json())
-                .then(data => {
-                    document.getElementById('markdownOutput').value = data.markdown;
-                    document.getElementById('markdownModal').classList.remove('hidden');
-                });
-        }
-
-        // 💡 คัดลอกข้อความใน textarea
-        function copyMarkdown() {
-            const ta = document.getElementById('markdownOutput');
-            ta.select();
-            document.execCommand('copy');
-        }
-
-        // 🔧 เปิด modal แก้ไขวิชา
         function openEditCourseModal(el) {
-            const id = el.dataset.id;
-            const name = el.dataset.name;
-            const cat = el.dataset.cat;
-            document.getElementById('editCourseId').value = id;
-            document.getElementById('editCourseTitle').value = name;
-            document.getElementById('editCourseCategory').value = cat;
+            document.getElementById('editCourseId').value = el.dataset.id;
+            document.getElementById('editCourseTitle').value = el.dataset.name;
+            document.getElementById('editCourseCategory').value = el.dataset.cat;
             document.getElementById('editCourseModal').classList.remove('hidden');
         }
+
+        function startBattle() {
+            const status = document.getElementById('battleSetupStatus');
+            const mode = document.getElementById('battleMode').value;
+            const question_count = Number(document.getElementById('battleQuestionCount').value || 8);
+            const courseSelect = document.getElementById('battleCourses');
+            const course_ids = Array.from(courseSelect.selectedOptions).map(o => Number(o.value));
+
+            status.textContent = 'Generating questions for battle...';
+            fetch('{{ url_for("learning.start_battle") }}', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ mode, question_count, course_ids })
+            })
+            .then(r => r.json().then(data => ({status: r.status, data})))
+            .then(({status: code, data}) => {
+                if (code >= 400 || !data.success) {
+                    status.textContent = data.error || `Start battle failed (HTTP ${code})`;
+                    return;
+                }
+                window.location.href = data.battle_url;
+            })
+            .catch((err) => status.textContent = `Server connection failed: ${err.message}`);
+        }
+
+        function addMonster() {
+            const payload = {
+                name: document.getElementById('mName').value,
+                description: document.getElementById('mDesc').value,
+                ratio_easy: Number(document.getElementById('re').value || 0),
+                ratio_normal: Number(document.getElementById('rn').value || 0),
+                ratio_hard: Number(document.getElementById('rh').value || 0),
+                ratio_hell: Number(document.getElementById('rx').value || 0),
+                damage_easy: Number(document.getElementById('de').value || 1),
+                damage_normal: Number(document.getElementById('dn').value || 2),
+                damage_hard: Number(document.getElementById('dh').value || 4),
+                damage_hell: Number(document.getElementById('dx').value || 6),
+            };
+            const status = document.getElementById('addMonsterStatus');
+            status.textContent = 'Saving monster...';
+            fetch('{{ url_for("learning.add_monster") }}', {
+                method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+            })
+            .then(r => r.json().then(data => ({status: r.status, data})))
+            .then(({status: code, data}) => {
+                if (code >= 400 || !data.success) { status.textContent = data.error || 'Save failed'; return; }
+                status.textContent = '✅ Monster saved. Please refresh to see it in selector.';
+            })
+            .catch(() => status.textContent = 'Server connection failed');
+        }
+
     </script>
 </body>
 </html>
