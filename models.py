@@ -10,6 +10,15 @@ class Course(db.Model):
     category = db.Column(db.String(50), nullable=False)
     background_image = db.Column(db.String(255), nullable=True)
     topics = db.relationship('Topic', backref='course', lazy=True, cascade="all, delete-orphan")
+    sections = db.relationship('TopicSection', backref='course', lazy=True, cascade="all, delete-orphan")
+
+
+class TopicSection(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    order_index = db.Column(db.Integer, default=0)
+    course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False)
+    topics = db.relationship('Topic', backref='section', lazy=True)
 
 
 class Topic(db.Model):
@@ -17,6 +26,7 @@ class Topic(db.Model):
     name = db.Column(db.String(100), nullable=False)
     order_index = db.Column(db.Integer, default=0)
     course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False)
+    section_id = db.Column(db.Integer, db.ForeignKey('topic_section.id'), nullable=True)
     bubbles = db.relationship('Bubble', backref='topic', lazy=True, cascade="all, delete-orphan")
 
 

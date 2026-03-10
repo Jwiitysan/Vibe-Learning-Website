@@ -65,27 +65,76 @@
         <div class="p-3 text-xs font-bold text-[#8c6d53] uppercase tracking-widest mt-2">Quest Log</div>
         
         <ul id="topics-list" class="flex-1 overflow-y-auto px-3 space-y-2 pb-4">
-            {% for topic in topics %}
-            <li data-id="{{ topic.id }}" class="group relative cursor-grab bg-transparent hover:bg-[#3e2b1f] rounded-lg transition {% if active_topic and topic.id == active_topic.id %} bg-[#4a3320] border-[#7a593e] shadow-inner font-bold {% endif %}">
-                <div class="flex items-center justify-between">
-                    <a href="{{ url_for('learning.course_detail', course_id=course.id) }}?topic_id={{ topic.id }}" 
-                       class="block w-full p-3 text-gray-300 hover:text-amber-100 {% if active_topic and topic.id == active_topic.id %} text-amber-300 {% endif %}">
-                        <i class="fa-solid {% if active_topic and topic.id == active_topic.id %}fa-location-dot animate-bounce{% else %}fa-map-pin{% endif %} mr-2 text-sm opacity-70"></i> 
-                        {{ topic.name }}
-                    </a>
-                    <button onclick="deleteTopic({{ topic.id }})" class="mr-3 text-[#8c6d53] hover:text-red-500 opacity-0 group-hover:opacity-100 transition z-10 p-2">
-                        <i class="fa-solid fa-trash text-sm"></i>
+            {% for section in sections %}
+            <!-- Section Header (non-draggable div inside list) -->
+            <li class="group relative mt-4 pt-2 section-header cursor-default" data-section-id="{{ section.id }}" style="pointer-events: auto;">
+                <div class="flex items-center justify-between px-2">
+                    <div class="text-[10px] font-bold text-[#6b5344] tracking-widest flex-1">
+                        --------- {{ section.name }} ---------
+                    </div>
+                    <button onclick="deleteSection({{ section.id }})" class="text-[#8c6d53] hover:text-red-500 opacity-0 group-hover:opacity-100 transition z-10 p-1" title="Delete section">
+                        <i class="fa-solid fa-trash text-xs"></i>
                     </button>
                 </div>
             </li>
+            
+            <!-- Topics in this section -->
+            {% for topic in topics %}
+                {% if topic.section_id == section.id %}
+                <li data-id="{{ topic.id }}" data-section-id="{{ section.id }}" class="group relative cursor-grab bg-transparent hover:bg-[#3e2b1f] rounded-lg transition ml-3 {% if active_topic and topic.id == active_topic.id %} bg-[#4a3320] border-[#7a593e] shadow-inner font-bold {% endif %}">
+                    <div class="flex items-center justify-between">
+                        <a href="{{ url_for('learning.course_detail', course_id=course.id) }}?topic_id={{ topic.id }}" 
+                           class="block w-full p-3 text-gray-300 hover:text-amber-100 {% if active_topic and topic.id == active_topic.id %} text-amber-300 {% endif %}">
+                            <i class="fa-solid {% if active_topic and topic.id == active_topic.id %}fa-location-dot animate-bounce{% else %}fa-map-pin{% endif %} mr-2 text-sm opacity-70"></i> 
+                            {{ topic.name }}
+                        </a>
+                        <button onclick="deleteTopic({{ topic.id }})" class="mr-3 text-[#8c6d53] hover:text-red-500 opacity-0 group-hover:opacity-100 transition z-10 p-2">
+                            <i class="fa-solid fa-trash text-sm"></i>
+                        </button>
+                    </div>
+                </li>
+                {% endif %}
+            {% endfor %}
+            {% endfor %}
+            
+            <!-- Uncategorized topics section header -->
+            <li class="group relative mt-4 pt-2 section-header cursor-default" data-section-id="none" style="pointer-events: auto;">
+                <div class="flex items-center justify-between px-2">
+                    <div class="text-[10px] font-bold text-[#6b5344] tracking-widest flex-1">
+                        --------- Uncategorized ---------
+                    </div>
+                </div>
+            </li>
+            
+            {% for topic in topics %}
+                {% if topic.section_id is none %}
+                <li data-id="{{ topic.id }}" data-section-id="none" class="group relative cursor-grab bg-transparent hover:bg-[#3e2b1f] rounded-lg transition {% if active_topic and topic.id == active_topic.id %} bg-[#4a3320] border-[#7a593e] shadow-inner font-bold {% endif %}">
+                    <div class="flex items-center justify-between">
+                        <a href="{{ url_for('learning.course_detail', course_id=course.id) }}?topic_id={{ topic.id }}" 
+                           class="block w-full p-3 text-gray-300 hover:text-amber-100 {% if active_topic and topic.id == active_topic.id %} text-amber-300 {% endif %}">
+                            <i class="fa-solid {% if active_topic and topic.id == active_topic.id %}fa-location-dot animate-bounce{% else %}fa-map-pin{% endif %} mr-2 text-sm opacity-70"></i> 
+                            {{ topic.name }}
+                        </a>
+                        <button onclick="deleteTopic({{ topic.id }})" class="mr-3 text-[#8c6d53] hover:text-red-500 opacity-0 group-hover:opacity-100 transition z-10 p-2">
+                            <i class="fa-solid fa-trash text-sm"></i>
+                        </button>
+                    </div>
+                </li>
+                {% endif %}
             {% endfor %}
         </ul>
 
         <div class="p-4 bg-[#231710]">
-            <input type="text" id="new-topic-name" placeholder="ชื่อพื้นที่ใหม่..." class="w-full bg-[#1a110b] border border-[#4a3320] rounded-md px-3 py-2 text-sm mb-2 text-amber-100 outline-none focus:border-amber-600">
-            <button id="add-topic-btn" class="w-full bg-amber-700 text-white py-2 rounded-md hover:bg-amber-600 text-sm font-bold transition shadow-md">
-                <i class="fa-solid fa-plus mr-1"></i> สำรวจพื้นที่ใหม่
-            </button>
+            <div class="space-y-2">
+                <input type="text" id="new-section-name" placeholder="ชื่อ Chapter..." class="w-full bg-[#1a110b] border border-[#4a3320] rounded-md px-3 py-2 text-sm text-amber-100 outline-none focus:border-amber-600" style="display:none;">
+                <button id="add-section-btn" class="w-full bg-purple-700 text-white py-2 rounded-md hover:bg-purple-600 text-sm font-bold transition shadow-md mb-2">
+                    <i class="fa-solid fa-plus mr-1"></i> เพิ่ม Chapter
+                </button>
+                <input type="text" id="new-topic-name" placeholder="ชื่อพื้นที่ใหม่..." class="w-full bg-[#1a110b] border border-[#4a3320] rounded-md px-3 py-2 text-sm mb-2 text-amber-100 outline-none focus:border-amber-600">
+                <button id="add-topic-btn" class="w-full bg-amber-700 text-white py-2 rounded-md hover:bg-amber-600 text-sm font-bold transition shadow-md">
+                    <i class="fa-solid fa-plus mr-1"></i> สำรวจพื้นที่ใหม่
+                </button>
+            </div>
         </div>
     </div>
 
@@ -238,6 +287,41 @@
     function copyMarkdown() { const out = document.getElementById('markdownOutput'); out.select(); document.execCommand('copy'); alert('คัดลอก Markdown สำเร็จ!'); }
 
     function deleteTopic(id) { if(confirm('ลบพื้นที่นี้?')) fetch(`/learning/api/delete_topic/${id}`, { method: 'DELETE' }).then(() => window.location.href="{{ url_for('learning.course_detail', course_id=course.id) }}"); }
+    
+    function deleteSection(id) { 
+        if(confirm('ลบ Chapter นี้? (Topics ตัดการเชื่อมโยง)')) {
+            fetch(`/learning/api/delete_section/${id}`, { method: 'DELETE' }).then(() => window.location.href="{{ url_for('learning.course_detail', course_id=course.id) }}");
+        } 
+    }
+    
+    function toggleAddSection() {
+        const input = document.getElementById('new-section-name');
+        const btn = document.getElementById('add-section-btn');
+        const isHidden = input.style.display === 'none';
+        input.style.display = isHidden ? 'block' : 'none';
+        btn.textContent = isHidden ? '✓ บันทึก Chapter' : '+ เพิ่ม Chapter';
+        if (isHidden) input.focus();
+    }
+    
+    document.getElementById('add-section-btn').addEventListener('click', () => {
+        const input = document.getElementById('new-section-name');
+        const btn = document.getElementById('add-section-btn');
+        
+        if (input.style.display === 'none') {
+            toggleAddSection();
+        } else {
+            const name = input.value.trim();
+            if (!name) return;
+            
+            fetch('{{ url_for("learning.add_section") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ course_id: {{ course.id }}, name: name })
+            }).then(r => r.json()).then(data => {
+                if (data.success) location.reload();
+            });
+        }
+    });
     function toggleInclude(id, btn) {
         // flip state locally for optimistic UI
         const icon = btn.querySelector('i');
@@ -258,7 +342,31 @@
         });
     }
     function openEditBubbleModal(id) { currentEditBubbleId = id; const html = document.querySelector(`div[data-id="${id}"] .bubble-content`).innerHTML; document.getElementById('editBubbleModal').classList.remove('hidden'); if (!editQuill) editQuill = new Quill('#edit-editor-container', qOptions); editQuill.root.innerHTML = html; }
-    // 🟢 enable drag‑reorder of bubbles and persist order
+    
+    // 🟢 Simple drag-reorder of TOPICS (sections are visual only)
+    if (document.getElementById('topics-list')) {
+        Sortable.create(document.getElementById('topics-list'), {
+            animation: 150,
+            filter: '.section-header',  // DON'T drag section headers
+            draggable: 'li[data-id]',   // Only drag items with data-id
+            ghostClass: 'opacity-50 bg-amber-600',
+            onEnd: function(evt) {
+                // Simple: just save order, don't change sections
+                const topicIds = [];
+                document.querySelectorAll('#topics-list li[data-id]').forEach(el => {
+                    topicIds.push(el.dataset.id);
+                });
+                
+                fetch('{{ url_for("learning.reorder_topics") }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids: topicIds })
+                });
+            }
+        });
+    }
+    
+    // 🟢 enable drag-reorder of bubbles and persist order
     if (document.getElementById('bubbles-list')) {
         Sortable.create(document.getElementById('bubbles-list'), {
             animation: 150,

@@ -9,7 +9,7 @@ from sqlalchemy import text
 from sqlalchemy.sql.expression import func
 from flask import Blueprint, render_template, request, redirect, url_for, jsonify, current_app
 from werkzeug.utils import secure_filename
-from models import db, Course, Topic, Bubble, PlayerProfile, Monster
+from models import db, Course, Topic, Bubble, PlayerProfile, Monster, TopicSection
 
 learning_bp = Blueprint('learning', __name__, url_prefix='/learning')
 
@@ -103,7 +103,7 @@ def _extract_json_array(text_value):
     return []
 
 
-def _build_random_markdown(min_courses=1, max_topics_per_course=None, selected_course_ids=None):
+def _build_random_markdown(min_courses=1, max_topics_per_course=None, selected_course_ids=None, min_bubbles_per_course=5):
     courses = Course.query.join(Topic).join(Bubble)
     courses = courses.filter(Bubble.include_in_random.is_(True)).distinct().all() if _has_include_column() else courses.distinct().all()
     if selected_course_ids:
@@ -122,16 +122,23 @@ def _build_random_markdown(min_courses=1, max_topics_per_course=None, selected_c
         if not topics:
             continue
 
-        topic_limit = len(topics) if max_topics_per_course is None else min(max_topics_per_course, len(topics))
-        sample_count = random.randint(1, topic_limit)
-        for topic in random.sample(topics, sample_count):
+        # Collect all bubbles from this course
+        course_bubbles = []
+        for topic in topics:
             bubbles = _uncensored_bubble_query().filter(Bubble.topic_id == topic.id).all()
-            if not bubbles:
-                continue
+            for bubble in bubbles:
+                course_bubbles.append({'topic': topic, 'bubble': bubble})
 
-            bubble = random.choice(bubbles)
-            lines.append(f"### Topic: {topic.name}")
-            lines.append(_html_to_text(bubble.content))
+        if not course_bubbles:
+            continue
+
+        # Ensure we get at least min_bubbles_per_course (default 5) random bubbles from this course
+        num_bubbles_to_sample = min(len(course_bubbles), max(min_bubbles_per_course, len(course_bubbles)))
+        sampled_bubbles = random.sample(course_bubbles, num_bubbles_to_sample)
+
+        for item in sampled_bubbles:
+            lines.append(f"### Topic: {item['topic'].name}")
+            lines.append(_html_to_text(item['bubble'].content))
             lines.append("")
     return '\n'.join(lines).strip()
 
@@ -233,7 +240,7 @@ def _difficulty_counts(monster, total_count):
     return counts
 
 
-def _generate_questions_for_mode(markdown_text, mode, count, api_key, all_counts=None):
+def _generate_questions_for_mode(markdown_text, mode, count, api_key, all_counts=None, monster_name=None, monster_description=None):
     if count <= 0:
         return []
 
@@ -249,12 +256,39 @@ Battle Question Distribution (total: {total}):
 {distribution}
 """
     
+    # Build monster context with strong framing
+    monster_context = ""
+    if monster_name:
+        monster_context = f"""
+═══════════════════════════════════════════════════════════════════════════════
+🎯 CRITICAL: ALL QUESTIONS MUST BE FRAMED AROUND THIS MONSTER
+═══════════════════════════════════════════════════════════════════════════════
+
+MONSTER NAME: {monster_name}
+MONSTER DESCRIPTION: {monster_description}
+
+FRAMING REQUIREMENTS:
+1. EVERY question must be written as if the student is preparing to BATTLE this monster
+2. Questions should explore knowledge that would be strategically useful against this monster
+3. Answers should reflect understanding relevant to defeating {monster_name}
+4. The question's context, scenario, or theme should naturally relate to the monster's description
+
+MONSTER-SPECIFIC CONTEXT CLUES TO INCORPORATE:
+{monster_description}
+
+This description should inform the TYPE and THEME of questions asked.
+═══════════════════════════════════════════════════════════════════════════════
+"""
+    
     prompt = f"""
-You are generating quiz questions for an RPG monster battle.
+You are generating quiz questions for an RPG monster battle against a SPECIFIC OPPONENT.
 Language: English only.
 Count: {count}
+Difficulty: {mode.upper()}
 Difficulty guidance: {mode_instruction}
+{monster_context}
 {difficulty_context}
+
 Return ONLY a JSON array.
 No markdown, no extra text.
 Each item must contain exactly:
@@ -267,23 +301,26 @@ Each item must contain exactly:
   "explanation": "..."
 }}
 
-Rules:
-- Must be grounded in the given knowledge base only.
-- Provide exactly 3 distractors.
-- Do not include numbering prefixes in answer texts.
+ABSOLUTE RULES:
+- Must be grounded in the given knowledge base only
+- Provide exactly 3 distractors
+- Do not include numbering prefixes in answer texts
+- *** EVERY SINGLE QUESTION MUST RELATE TO THE MONSTER DESCRIPTION ***
+- *** FAILURE TO FRAME QUESTIONS AROUND THE MONSTER IS UNACCEPTABLE ***
+- Questions should feel like battle preparation, not generic quizzes
+- Similar choice lengths to avoid giving away answers
+- Explanations should briefly mention how this knowledge relates to defeating the monster
 
-Note:
-- Each choices should have similar length and complexity to avoid giving away the answer.
-- Easy Diffulty: Focus on direct recall of facts. Question can be answered with a single sentence from the knowledge base.
-- Normal Difficulty: Focus on simple inference and understanding. Question may require connecting 2-3 sentences from the knowledge base.
-- Hard Difficulty: Focus on applied knowledge and deeper understanding. It may be a mini-scenario that requires synthesizing multiple pieces of information from the knowledge base.
-- Hell Difficulty: Give a less clueful scenario that requires critical thinking and deep understanding. It may involve edge cases or require understanding nuances.
+DIFFICULTY ADAPTATIONS FOR THIS MONSTER:
+- Easy: Direct facts about the monster's nature or related concepts
+- Normal: Understanding the monster's described characteristics and how to respond
+- Hard: Strategic thinking about how to use knowledge against the monster's abilities
+- Hell: Deep critical thinking about exploiting the monster's nature based on subtle details
 
 Knowledge base:
 {markdown_text}
 """.strip()
 
-    print(prompt)  # Debug log for prompt
     response = requests.post(
         'https://api.openai.com/v1/responses',
         headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
@@ -379,13 +416,21 @@ def start_battle():
     data = request.get_json() or {}
     question_count = max(3, min(int(data.get('question_count', 8) or 8), 30))
     course_ids = data.get('course_ids') or []
+    monster_id = data.get('monster_id')
 
     monsters = Monster.query.all()
     if not monsters:
         return jsonify({'success': False, 'error': 'No monsters available.'}), 400
-    monster = random.choice(monsters)
+    
+    # Use selected monster or random
+    if monster_id:
+        monster = Monster.query.get(monster_id)
+        if not monster:
+            return jsonify({'success': False, 'error': 'Selected monster not found.'}), 404
+    else:
+        monster = random.choice(monsters)
 
-    markdown_text = _build_random_markdown(min_courses=2, max_topics_per_course=4, selected_course_ids=course_ids)
+    markdown_text = _build_random_markdown(min_courses=2, max_topics_per_course=5, selected_course_ids=course_ids)
     if not markdown_text:
         return jsonify({'success': False, 'error': 'No markdown content available.'}), 400
 
@@ -398,7 +443,7 @@ def start_battle():
     try:
         questions = []
         for diff in DIFFICULTY_ORDER:
-            qs = _generate_questions_for_mode(markdown_text, diff, counts[diff], api_key, all_counts=counts)
+            qs = _generate_questions_for_mode(markdown_text, diff, counts[diff], api_key, all_counts=counts, monster_name=monster.name, monster_description=monster.description)
             questions.extend(qs)
 
         if len(questions) < max(3, question_count // 2):
@@ -497,17 +542,46 @@ def battle_answer(session_id):
 @learning_bp.route('/<int:course_id>')
 def course_detail(course_id):
     course = Course.query.get_or_404(course_id)
+    sections = TopicSection.query.filter_by(course_id=course.id).order_by(TopicSection.order_index.asc()).all()
     topics = Topic.query.filter_by(course_id=course.id).order_by(Topic.order_index.asc()).all()
     active_topic_id = request.args.get('topic_id', type=int)
     active_topic = next((t for t in topics if t.id == active_topic_id), topics[0]) if topics else None
     bubbles = Bubble.query.filter_by(topic_id=active_topic.id).order_by(Bubble.order_index.asc()).all() if active_topic else []
-    return render_template('learning/course.html', course=course, topics=topics, active_topic=active_topic, bubbles=bubbles)
+    return render_template('learning/course.html', course=course, sections=sections, topics=topics, active_topic=active_topic, bubbles=bubbles)
 
 
 @learning_bp.route('/api/add_topic', methods=['POST'])
 def add_topic():
     data = request.get_json()
-    db.session.add(Topic(name=data['name'], course_id=data['course_id']))
+    section_id = data.get('section_id')
+    topic = Topic(name=data['name'], course_id=data['course_id'])
+    if section_id:
+        topic.section_id = section_id
+    db.session.add(topic)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@learning_bp.route('/api/add_section', methods=['POST'])
+def add_section():
+    data = request.get_json()
+    course_id = data['course_id']
+    section_name = (data.get('name') or 'New Chapter').strip()
+    
+    # Get max order index for new section
+    max_index = db.session.query(db.func.max(TopicSection.order_index)).filter(TopicSection.course_id == course_id).scalar()
+    max_index = -1 if max_index is None else max_index
+    
+    section = TopicSection(name=section_name, course_id=course_id, order_index=max_index + 1)
+    db.session.add(section)
+    db.session.commit()
+    return jsonify({'success': True, 'section_id': section.id})
+
+
+@learning_bp.route('/api/delete_section/<int:section_id>', methods=['DELETE'])
+def delete_section(section_id):
+    section = TopicSection.query.get_or_404(section_id)
+    db.session.delete(section)
     db.session.commit()
     return jsonify({'success': True})
 
@@ -552,6 +626,31 @@ def reorder_bubbles():
         bubble = Bubble.query.get(bid)
         if bubble:
             bubble.order_index = idx
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@learning_bp.route('/api/reorder_topics', methods=['POST'])
+def reorder_topics():
+    ids = (request.get_json() or {}).get('ids', [])
+    for idx, tid in enumerate(ids):
+        topic = Topic.query.get(tid)
+        if topic:
+            topic.order_index = idx
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@learning_bp.route('/api/update_topics_order_and_sections', methods=['POST'])
+def update_topics_order_and_sections():
+    updates = (request.get_json() or {}).get('updates', [])
+    for item in updates:
+        topic = Topic.query.get(item.get('id'))
+        if topic:
+            topic.order_index = item.get('order', 0)
+            # Update section_id (null if 'none', otherwise the section id)
+            section_id = item.get('section_id')
+            topic.section_id = None if section_id == 'none' else section_id
     db.session.commit()
     return jsonify({'success': True})
 

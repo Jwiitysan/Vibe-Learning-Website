@@ -104,45 +104,121 @@
     </div>
 
     <div id="battleSetupModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div class="bg-white p-8 rounded-2xl w-full max-w-xl">
+        <div class="bg-white p-8 rounded-2xl w-full max-w-2xl max-h-screen overflow-y-auto">
             <h2 class="text-2xl font-bold mb-5">Start Monster Battle</h2>
-            <div class="space-y-3">
-                <p class="text-xs text-slate-500">Monster and difficulty distribution are random by monster profile in each run.</p>
+            <div class="space-y-4">
+                <p class="text-xs text-slate-500">Monster and difficulty distribution are determined by monster profile.</p>
 
+                <!-- Monster Selection -->
+                <div class="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                    <label class="text-sm font-semibold text-slate-700 block mb-2">⚔️ Select Monster</label>
+                    <select id="battleMonster" class="w-full border p-2 rounded mb-2" onchange="updateMonsterDescription()">
+                        <option value="">? Random Monster</option>
+                        {% for m in monsters %}
+                        <option value="{{ m.id }}" data-desc="{{ m.description }}">{{ m.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <div id="monsterDescription" class="text-sm text-slate-600 italic p-2 bg-white rounded border border-purple-100">
+                        ? Random monster will be chosen at battle start
+                    </div>
+                </div>
 
-                <label class="text-sm">Question Count</label>
-                <input id="battleQuestionCount" type="number" min="3" max="30" value="8" class="w-full border p-2 rounded">
+                <!-- Question Count -->
+                <div>
+                    <label class="text-sm font-semibold text-slate-700 block mb-2">Question Count</label>
+                    <input id="battleQuestionCount" type="number" min="3" max="30" value="8" class="w-full border p-2 rounded">
+                </div>
 
-                <label class="text-sm">Select Content (Courses)</label>
-                <select id="battleCourses" multiple class="w-full border p-2 rounded h-40">
-                    {% for c in courses %}
-                    <option value="{{ c.id }}">{{ c.title }} — {{ c.category or 'General' }}</option>
-                    {% endfor %}
-                </select>
-                <p class="text-xs text-slate-500">เลือกได้หลายวิชา (ถ้าไม่เลือกจะสุ่มจากทุกวิชา)</p>
+                <!-- Category Filter -->
+                <div class="bg-amber-50 p-4 rounded-lg border border-amber-200">
+                    <label class="text-sm font-semibold text-slate-700 block mb-2">📚 Filter by Category</label>
+                    <div class="flex flex-wrap gap-2 mb-3">
+                        <button type="button" onclick="filterBattleCoursesByCategory('all')" class="battle-cat-btn active px-3 py-1 rounded-full border text-xs font-medium hover:bg-amber-200 transition" data-category="all">All</button>
+                        {% for cat in categories %}
+                        <button type="button" onclick="filterBattleCoursesByCategory('{{ cat.lower() }}')" class="battle-cat-btn px-3 py-1 rounded-full border text-xs font-medium hover:bg-amber-200 transition" data-category="{{ cat.lower() }}">{{ cat }}</button>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Course Selection with Topics Count -->
+                <div>
+                    <label class="text-sm font-semibold text-slate-700 block mb-2">Select Content (Courses)</label>
+                    <select id="battleCourses" multiple class="w-full border p-2 rounded h-40">
+                        {% for c in courses %}
+                        <option value="{{ c.id }}" data-category="{{ (c.category or 'general').lower() }}" data-topics="{{ c.topics | length }}">{{ c.title }} — {{ c.category or 'General' }} {% if c.topics | length == 0 %}<span style="color: red; font-weight: bold;">(0 topics)</span>{% else %}<span style="color: green;">({{ c.topics | length }} topics)</span>{% endif %}</option>
+                        {% endfor %}
+                    </select>
+                    <p class="text-xs text-slate-500 mt-2">💡 Select multiple courses or leave empty for random selection from all</p>
+                </div>
             </div>
-            <p id="battleSetupStatus" class="text-sm text-slate-500 mt-3"></p>
+
+            <p id="battleSetupStatus" class="text-sm text-slate-500 mt-4"></p>
             <div class="flex justify-end gap-2 mt-6">
                 <button onclick="document.getElementById('battleSetupModal').classList.add('hidden')" class="px-4 py-2 text-gray-400">Cancel</button>
-                <button onclick="startBattle()" class="px-4 py-2 bg-purple-700 text-white rounded">Generate + Start</button>
+                <button onclick="startBattle()" class="px-4 py-2 bg-purple-700 text-white rounded hover:bg-purple-600 transition">Generate + Start</button>
             </div>
         </div>
     </div>
 
     <div id="addMonsterModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div class="bg-white p-8 rounded-2xl w-full max-w-xl">
+        <div class="bg-white p-8 rounded-2xl w-full max-w-2xl">
             <h2 class="text-2xl font-bold mb-5">Add Monster</h2>
-            <div class="grid grid-cols-2 gap-3">
-                <input id="mName" placeholder="Name" class="border p-2 rounded col-span-2">
-                <textarea id="mDesc" placeholder="Description" class="border p-2 rounded col-span-2"></textarea>
-                <input id="re" type="number" value="25" class="border p-2 rounded" placeholder="ratio easy">
-                <input id="rn" type="number" value="25" class="border p-2 rounded" placeholder="ratio normal">
-                <input id="rh" type="number" value="25" class="border p-2 rounded" placeholder="ratio hard">
-                <input id="rx" type="number" value="25" class="border p-2 rounded" placeholder="ratio hell">
-                <input id="de" type="number" value="1" class="border p-2 rounded" placeholder="dmg easy">
-                <input id="dn" type="number" value="2" class="border p-2 rounded" placeholder="dmg normal">
-                <input id="dh" type="number" value="4" class="border p-2 rounded" placeholder="dmg hard">
-                <input id="dx" type="number" value="6" class="border p-2 rounded" placeholder="dmg hell">
+            <div class="space-y-5">
+                <!-- Name & Description -->
+                <div>
+                    <label class="text-sm font-semibold text-slate-700 block mb-2">Name</label>
+                    <input id="mName" placeholder="Monster name..." class="w-full border p-2 rounded">
+                </div>
+                <div>
+                    <label class="text-sm font-semibold text-slate-700 block mb-2">Description</label>
+                    <textarea id="mDesc" placeholder="Monster description..." class="w-full border p-2 rounded h-20"></textarea>
+                </div>
+
+                <!-- Difficulty Ratio Section -->
+                <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <h3 class="font-semibold text-slate-700 text-sm mb-3">Question Distribution (Ratio %)</h3>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs text-slate-600 block mb-1">Easy Ratio %</label>
+                            <input id="re" type="number" value="25" class="w-full border p-2 rounded">
+                        </div>
+                        <div>
+                            <label class="text-xs text-slate-600 block mb-1">Normal Ratio %</label>
+                            <input id="rn" type="number" value="25" class="w-full border p-2 rounded">
+                        </div>
+                        <div>
+                            <label class="text-xs text-slate-600 block mb-1">Hard Ratio %</label>
+                            <input id="rh" type="number" value="25" class="w-full border p-2 rounded">
+                        </div>
+                        <div>
+                            <label class="text-xs text-slate-600 block mb-1">Hell Ratio %</label>
+                            <input id="rx" type="number" value="25" class="w-full border p-2 rounded">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Damage Section -->
+                <div class="bg-red-50 p-4 rounded-lg border border-red-200">
+                    <h3 class="font-semibold text-slate-700 text-sm mb-3">Damage per Wrong Answer</h3>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs text-slate-600 block mb-1">Easy Damage</label>
+                            <input id="de" type="number" value="1" class="w-full border p-2 rounded">
+                        </div>
+                        <div>
+                            <label class="text-xs text-slate-600 block mb-1">Normal Damage</label>
+                            <input id="dn" type="number" value="2" class="w-full border p-2 rounded">
+                        </div>
+                        <div>
+                            <label class="text-xs text-slate-600 block mb-1">Hard Damage</label>
+                            <input id="dh" type="number" value="4" class="w-full border p-2 rounded">
+                        </div>
+                        <div>
+                            <label class="text-xs text-slate-600 block mb-1">Hell Damage</label>
+                            <input id="dx" type="number" value="6" class="w-full border p-2 rounded">
+                        </div>
+                    </div>
+                </div>
             </div>
             <p id="addMonsterStatus" class="text-sm text-slate-500 mt-3"></p>
             <div class="flex justify-end gap-2 mt-6">
@@ -206,17 +282,48 @@
             document.getElementById('editCourseModal').classList.remove('hidden');
         }
 
+        function updateMonsterDescription() {
+            const select = document.getElementById('battleMonster');
+            const selectedOption = select.options[select.selectedIndex];
+            const descDiv = document.getElementById('monsterDescription');
+            
+            if (select.value === '') {
+                descDiv.textContent = '? Random monster will be chosen at battle start';
+            } else {
+                descDiv.textContent = selectedOption.getAttribute('data-desc');
+            }
+        }
+
+        function filterBattleCoursesByCategory(category) {
+            document.querySelectorAll('.battle-cat-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            const courseSelect = document.getElementById('battleCourses');
+            const options = courseSelect.querySelectorAll('option');
+            
+            options.forEach(option => {
+                const optionCategory = option.getAttribute('data-category');
+                if (category === 'all' || optionCategory === category) {
+                    option.style.display = '';
+                } else {
+                    option.style.display = 'none';
+                }
+            });
+        }
+
         function startBattle() {
             const status = document.getElementById('battleSetupStatus');
             const question_count = Number(document.getElementById('battleQuestionCount').value || 8);
             const courseSelect = document.getElementById('battleCourses');
             const course_ids = Array.from(courseSelect.selectedOptions).map(o => Number(o.value));
+            const monsterSelect = document.getElementById('battleMonster');
+            const monster_id = monsterSelect.value ? Number(monsterSelect.value) : null;
 
             status.textContent = 'Generating questions for battle...';
             fetch('{{ url_for("learning.start_battle") }}', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ question_count, course_ids })
+                body: JSON.stringify({ question_count, course_ids, monster_id })
             })
             .then(r => r.json().then(data => ({status: r.status, data})))
             .then(({status: code, data}) => {
