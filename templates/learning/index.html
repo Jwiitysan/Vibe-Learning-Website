@@ -79,7 +79,7 @@
 
         <div id="courseContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {% for course in courses %}
-            <div class="course-item relative" data-title="{{ course.title.lower() }}" data-category="{{ (course.category or 'general').lower() }}" data-id="{{ course.id }}" data-name="{{ course.title }}" data-cat="{{ course.category }}">
+            <div class="course-item relative group" data-title="{{ course.title.lower() }}" data-category="{{ (course.category or 'general').lower() }}" data-id="{{ course.id }}" data-name="{{ course.title }}" data-cat="{{ course.category }}">
                 <a href="{{ url_for('learning.course_detail', course_id=course.id) }}" class="course-card rounded-2xl overflow-hidden flex flex-col group h-full">
                     <div class="h-40 bg-cover bg-center relative" style="background-image: url('{{ url_for('static', filename='uploads/' + (course.background_image or 'default.jpg')) }}')">
                         <div class="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors"></div>
@@ -93,10 +93,9 @@
                     </div>
                 </a>
                 <!-- edit button overlay -->
-                <button onclick="openEditCourseModal(this.closest('.course-item'))" class="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity bg-amber-100 text-amber-700 hover:bg-amber-600 hover:text-white w-8 h-8 rounded-full flex items-center justify-center shadow">
+                <button type="button" onclick="openEditCourseModal(this.closest('.course-item'))" class="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 text-amber-700 hover:bg-amber-600 hover:text-white w-9 h-9 rounded-full flex items-center justify-center shadow border border-amber-200 z-10" aria-label="Edit course">
                     <i class="fa-solid fa-pen text-xs"></i>
                 </button>
-                </a>
             </div>
             {% endfor %}
         </div>
