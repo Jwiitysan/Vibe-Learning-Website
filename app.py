@@ -4,6 +4,26 @@ from models import db
 from routes import learning_bp
 from todo_routes import todo_bp
 
+
+def load_env_file(env_path='.env'):
+    """Load simple KEY=VALUE pairs from .env into process env if not set."""
+    if not os.path.exists(env_path):
+        return
+
+    with open(env_path, 'r', encoding='utf-8') as f:
+        for raw_line in f:
+            line = raw_line.strip()
+            if not line or line.startswith('#') or '=' not in line:
+                continue
+            key, value = line.split('=', 1)
+            key = key.strip()
+            value = value.strip().strip('"').strip("'")
+            if key:
+                os.environ.setdefault(key, value)
+
+
+load_env_file()
+
 app = Flask(__name__)
 
 # ตั้งค่า Database เป็น SQLite
