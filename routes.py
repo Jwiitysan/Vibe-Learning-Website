@@ -316,13 +316,13 @@ Knowledge base:
             'current': 0,
             'exp_reward': MODE_CONFIG[mode]['exp'],
         }
-        return jsonify({'success': True, 'battle_url': url_for('learning.battle_page', session_id=session_id)})
+        return jsonify({'success': True, 'battle_url': url_for('learning.monster_battle_page', session_id=session_id)})
     except requests.RequestException as e:
         return jsonify({'success': False, 'error': f'OpenAI request failed: {e}'}), 502
 
 
-@learning_bp.route('/battle')
-def battle_page():
+@learning_bp.route('/battle', endpoint='monster_battle_page')
+def monster_battle_page():
     session_id = request.args.get('session_id', '')
     if session_id not in BATTLE_SESSIONS:
         return redirect(url_for('learning.index'))
@@ -389,122 +389,6 @@ def battle_answer(session_id):
         'message': f"Wrong! -{dmg} HP. Try again.",
         'answer_index': q['answer_index']
     })
-
-
-
-@learning_bp.route('/api/generate_questions', methods=['POST'])
-def generate_questions():
-    data = request.get_json() or {}
-    markdown_text = (data.get('markdown') or '').strip()
-    question_count = max(3, min(int(data.get('count', 9)), 30))
-
-    if not markdown_text:
-        markdown_text = _build_random_markdown(min_courses=2, max_bubbles_per_course=4)
-
-    if not markdown_text:
-        return jsonify({'success': False, 'error': 'No markdown content available.'}), 400
-
-    api_key = os.environ.get('OPENAI_API_KEY')
-    if not api_key:
-        return jsonify({'success': False, 'error': 'OPENAI_API_KEY is not configured on the server.'}), 500
-
-    model = os.environ.get('OPENAI_MODEL', 'gpt-4o-mini')
-
-    prompt = f"""
-You are a quiz content generator for an RPG learning battle.
-
-TASK:
-Generate exactly {question_count} multiple-choice questions from the MARKDOWN KNOWLEDGE BASE.
-All text must be in English.
-
-STRICT RULES:
-1) Return ONLY a JSON array.
-2) Every item must include exactly these keys:
-   - course_title (string)
-   - topic_name (string)
-   - question_type (one of: general_knowledge, applied_analysis_calculation, deep_thinking)
-   - question (string)
-   - choices (array of exactly 4 strings)
-   - answer_index (integer 0-3)
-   - explanation (string)
-3) Balance question types across the full set:
-   - general_knowledge
-   - applied_analysis_calculation
-   - deep_thinking
-4) Questions must be grounded in the markdown only.
-5) Do not include markdown fences.
-
-MARKDOWN KNOWLEDGE BASE:
-{markdown_text}
-""".strip()
-
-    try:
-        response = requests.post(
-            'https://api.openai.com/v1/responses',
-            headers={
-                'Authorization': f'Bearer {api_key}',
-                'Content-Type': 'application/json'
-            },
-            json={
-                'model': model,
-                'input': prompt,
-                'temperature': 0.5
-            },
-            timeout=60
-        )
-        response.raise_for_status()
-        result = response.json()
-        output_text = _extract_text_from_responses_payload(result)
-        questions = _extract_json_array(output_text)
-
-        if not questions:
-            return jsonify({
-                'success': False,
-                'error': 'Model response was not valid JSON question array. Please retry.',
-                'raw_output': output_text[:8000]
-            }), 502
-
-        saved = _save_generated_questions(questions)
-        return jsonify({
-            'success': True,
-            'saved_count': len(saved),
-            'message': f'Upload question complete: saved {len(saved)} questions to database.'
-        })
-    except requests.RequestException as e:
-        return jsonify({'success': False, 'error': f'OpenAI request failed: {e}'}), 502
-
-
-@learning_bp.route('/battle')
-def battle_page():
-    return render_template('learning/battle.html')
-
-
-@learning_bp.route('/api/battle_questions')
-def battle_questions():
-    count = max(3, min(request.args.get('count', 9, type=int), 30))
-    all_questions = GeneratedQuestion.query.all()
-
-    if len(all_questions) < count:
-        return jsonify({'success': False, 'error': 'Not enough questions in database. Please generate questions first.'}), 400
-
-    grouped = {qtype: [] for qtype in QUESTION_TYPES}
-    for q in all_questions:
-        grouped.setdefault(q.question_type, []).append(q)
-
-    selected = []
-    per_type = max(1, count // 3)
-    for qtype in QUESTION_TYPES:
-        pool = grouped.get(qtype, [])
-        if pool:
-            selected.extend(random.sample(pool, min(per_type, len(pool))))
-
-    remaining = [q for q in all_questions if q not in selected]
-    if len(selected) < count and remaining:
-        selected.extend(random.sample(remaining, min(count - len(selected), len(remaining))))
-
-    random.shuffle(selected)
-    selected = selected[:count]
-    return jsonify({'success': True, 'questions': [_question_to_dict(q) for q in selected]})
 
 
 @learning_bp.route('/<int:course_id>')
