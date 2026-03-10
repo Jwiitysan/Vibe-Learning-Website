@@ -320,7 +320,11 @@ MARKDOWN KNOWLEDGE BASE:
             }), 502
 
         saved = _save_generated_questions(questions)
-        return jsonify({'success': True, 'saved_count': len(saved), 'questions': [_question_to_dict(s) for s in saved]})
+        return jsonify({
+            'success': True,
+            'saved_count': len(saved),
+            'message': f'Upload question complete: saved {len(saved)} questions to database.'
+        })
     except requests.RequestException as e:
         return jsonify({'success': False, 'error': f'OpenAI request failed: {e}'}), 502
 
