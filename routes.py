@@ -103,7 +103,7 @@ def _extract_json_array(text_value):
     return []
 
 
-def _build_random_markdown(min_courses=1, max_bubbles_per_course=3, selected_course_ids=None):
+def _build_random_markdown(min_courses=1, max_topics_per_course=None, selected_course_ids=None):
     courses = Course.query.join(Topic).join(Bubble)
     courses = courses.filter(Bubble.include_in_random.is_(True)).distinct().all() if _has_include_column() else courses.distinct().all()
     if selected_course_ids:
@@ -117,12 +117,20 @@ def _build_random_markdown(min_courses=1, max_bubbles_per_course=3, selected_cou
     lines = []
     for course in sampled:
         lines.append(f"## Course: {course.title}")
-        bubbles = _uncensored_bubble_query().join(Topic).filter(Topic.course_id == course.id).all()
-        if not bubbles:
+
+        topics = Topic.query.filter_by(course_id=course.id).all()
+        if not topics:
             continue
-        sample_count = random.randint(1, min(max_bubbles_per_course, len(bubbles)))
-        for bubble in random.sample(bubbles, sample_count):
-            lines.append(f"### Topic: {bubble.topic.name}")
+
+        topic_limit = len(topics) if max_topics_per_course is None else min(max_topics_per_course, len(topics))
+        sample_count = random.randint(1, topic_limit)
+        for topic in random.sample(topics, sample_count):
+            bubbles = _uncensored_bubble_query().filter(Bubble.topic_id == topic.id).all()
+            if not bubbles:
+                continue
+
+            bubble = random.choice(bubbles)
+            lines.append(f"### Topic: {topic.name}")
             lines.append(_html_to_text(bubble.content))
             lines.append("")
     return '\n'.join(lines).strip()
@@ -377,7 +385,7 @@ def start_battle():
         return jsonify({'success': False, 'error': 'No monsters available.'}), 400
     monster = random.choice(monsters)
 
-    markdown_text = _build_random_markdown(min_courses=2, max_bubbles_per_course=4, selected_course_ids=course_ids)
+    markdown_text = _build_random_markdown(min_courses=2, max_topics_per_course=4, selected_course_ids=course_ids)
     if not markdown_text:
         return jsonify({'success': False, 'error': 'No markdown content available.'}), 400
 
