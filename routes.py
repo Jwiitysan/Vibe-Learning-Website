@@ -338,6 +338,16 @@ def monster_battle_page():
     return render_template('learning/battle.html', session_id=session_id)
 
 
+
+
+@learning_bp.route('/battle_legacy', endpoint='battle_page')
+def battle_page_legacy_redirect():
+    session_id = request.args.get('session_id', '')
+    if session_id:
+        return redirect(url_for('learning.monster_battle_page', session_id=session_id))
+    return redirect(url_for('learning.index'))
+
+
 @learning_bp.route('/api/battle_state/<session_id>')
 def battle_state(session_id):
     s = BATTLE_SESSIONS.get(session_id)
