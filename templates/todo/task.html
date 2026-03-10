@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report: {{ task.title }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Prompt:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        body { background-color: #d1c7b7; font-family: 'Prompt', sans-serif; padding: 2rem; }
+        .report-paper { 
+            background-color: #fff; 
+            background-image: linear-gradient(#e5e5e5 1px, transparent 1px);
+            background-size: 100% 2.5rem;
+            box-shadow: 15px 15px 0px rgba(0,0,0,0.1);
+            line-height: 2.5rem;
+        }
+        .typewriter { font-family: 'Special Elite', cursive; }
+        .strikethrough { text-decoration: line-through; color: #94a3b8; font-style: italic; }
+    </style>
+</head>
+<body>
+
+    <div class="max-w-3xl mx-auto report-paper p-12 min-h-[95vh] relative border border-gray-300">
+        
+        <div class="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none select-none">
+            <i class="fa-solid fa-building-shield text-[20rem]"></i>
+        </div>
+
+        <div class="mb-10 border-b-4 border-double border-black pb-4 flex justify-between items-start relative z-10">
+            <div>
+                <h1 class="text-4xl typewriter font-bold uppercase">{{ task.title }}</h1>
+                <p class="typewriter mt-2 text-sm">CASE ID: #{{ "%04d"|format(task.id) }} | STATUS: <span id="status-text">{{ task.status.upper() }}</span></p>
+            </div>
+            <a href="{{ url_for('todo.index') }}" class="typewriter text-sm hover:underline text-red-700">[ EXIT FILE ]</a>
+        </div>
+
+        <div class="mb-12 relative z-10">
+            <h2 class="typewriter font-bold text-lg text-[#3d3028] underline">INTELLIGENCE BRIEF:</h2>
+            <p class="text-xl mt-4 italic text-gray-700">{{ task.description or "No brief provided." }}</p>
+        </div>
+
+        <div class="mb-24 relative z-10">
+            <h2 class="typewriter font-bold text-lg text-[#3d3028] underline mb-6">OPERATIONAL OBJECTIVES:</h2>
+            <ul id="subtask-list" class="space-y-1">
+                {% for sub in task.subtasks %}
+                <li class="flex items-center group">
+                    <button onclick="toggleSubtask({{ sub.id }}, this)" class="mr-4 text-2xl transition-colors {% if sub.status == 'completed' %}text-green-600{% else %}text-gray-300{% endif %}">
+                        <i class="fa-solid {% if sub.status == 'completed' %}fa-circle-check{% else %}fa-circle{% endif %}"></i>
+                    </button>
+                    <span class="text-xl {% if sub.status == 'completed' %}strikethrough{% endif %}">{{ sub.title }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+
+            <div class="mt-10 pt-4 border-t-2 border-dashed border-gray-200">
+                <div class="flex gap-4">
+                    <input type="text" id="new-subtask-input" placeholder="APPEND NEW OBJECTIVE..." class="flex-1 bg-transparent border-b-2 border-gray-300 typewriter focus:border-black outline-none py-1">
+                    <button onclick="addSubtask()" class="bg-[#3d3028] text-white px-6 py-1 typewriter hover:bg-black transition">APPEND</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-between items-center mt-auto pt-10 relative z-10">
+            <button onclick="destroyFile({{ task.id }})" class="typewriter text-red-800 border-2 border-red-800 px-4 py-2 hover:bg-red-800 hover:text-white transition">
+                [ BURN FILE ]
+            </button>
+            
+            <button onclick="toggleTaskStatus()" class="border-4 border-red-800 text-red-800 px-8 py-3 typewriter font-bold text-2xl hover:bg-red-800 hover:text-white transition-all transform hover:scale-105 active:scale-95 shadow-xl">
+                {% if task.status == 'pending' %}STAMP: FINISHED{% else %}RE-OPEN CASE{% endif %}
+            </button>
+        </div>
+    </div>
+
+    <script>
+        function addSubtask() {
+            const title = document.getElementById('new-subtask-input').value;
+            if (!title) return;
+            fetch('{{ url_for("todo.add_subtask") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title: title, task_id: {{ task.id }} })
+            }).then(res => res.json()).then(data => { if(data.success) location.reload(); });
+        }
+
+        function toggleSubtask(id, btn) {
+            fetch(`/todo/api/toggle_subtask/${id}`, { method: 'POST' })
+            .then(res => res.json()).then(data => {
+                if(data.success) {
+                    const icon = btn.querySelector('i');
+                    const text = btn.nextElementSibling;
+                    if (data.status === 'completed') {
+                        icon.classList.replace('fa-circle', 'fa-circle-check');
+                        btn.classList.add('text-green-600');
+                        text.classList.add('strikethrough');
+                    } else {
+                        icon.classList.replace('fa-circle-check', 'fa-circle');
+                        btn.classList.remove('text-green-600');
+                        text.classList.remove('strikethrough');
+                    }
+                }
+            });
+        }
+
+        function toggleTaskStatus() {
+            fetch(`/todo/api/toggle_task/{{ task.id }}`, { method: 'POST' })
+            .then(res => res.json()).then(data => { if(data.success) location.reload(); });
+        }
+
+        function destroyFile(id) {
+            if(confirm('CONFIRM BURN: ต้องการเผาทำลายแฟ้มรายงานฉบับนี้หรือไม่? ข้อมูลทั้งหมดจะถูกทำลายถาวร!')) {
+                fetch(`/todo/api/delete_task/${id}`, { method: 'DELETE' })
+                .then(res => res.json()).then(data => {
+                    if(data.success) window.location.href = "{{ url_for('todo.index') }}";
+                });
+            }
+        }
+    </script>
+</body>
+</html>

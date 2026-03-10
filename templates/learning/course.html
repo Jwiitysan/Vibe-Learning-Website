@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ course.title }} - Journey Log</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/monokai-sublime.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/quill-blot-formatter@1.0.5/dist/quill-blot-formatter.min.js"></script>
+    <script src="https://unpkg.com/turndown/dist/turndown.js"></script>
+
+    <style>
+        body { background-color: #f4ece1; font-family: 'Prompt', sans-serif; }
+        .adventure-sidebar { background-color: #2c1e16; color: #e8dcc4; }
+        
+        .adventure-bubble { 
+            background-color: #fdfbf7; 
+            border: 1px solid #d4c4a8; 
+            box-shadow: 2px 4px 10px rgba(0,0,0,0.05); 
+            height: max-content !important; 
+        }
+        
+        .ql-editor { font-family: 'Prompt', sans-serif; font-size: 1rem; line-height: 1.7; color: #3e2723; }
+        .ql-editor pre { background: #1e1e1e; color: #d4d4d4; padding: 1em; border-radius: 0.5em; font-family: monospace; }
+        
+        /* 🟢 1. กำจัดช่องว่างบน-ล่างภายใน Bubble อย่างเด็ดขาด */
+        .bubble-content.ql-editor { 
+            height: max-content !important; 
+            min-height: 0 !important; 
+            padding: 0 !important; /* ลบ padding ภายใน editor */
+            overflow-y: hidden;
+        }
+
+        /* 🟢 2. ลบ Margin ของย่อหน้าแรกและย่อหน้าสุดท้าย เพื่อไม่ให้ดันขอบกล่อง */
+        .bubble-content.ql-editor p:first-child { margin-top: 0 !important; }
+        .bubble-content.ql-editor p:last-child { margin-bottom: 0 !important; }
+
+        .ql-editor img { max-width: 100%; height: auto !important; border-radius: 0.5rem; cursor: pointer; }
+        .ql-editor iframe.ql-video { max-width: 100%; border-radius: 0.5rem; }
+        
+        .ql-toolbar.ql-snow { background-color: #fff; border-color: #d4c4a8; border-radius: 0.5rem 0.5rem 0 0; }
+        .ql-container.ql-snow { border-color: #d4c4a8; border-radius: 0 0 0.5rem 0.5rem; background-color: #fff; }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+    <div class="w-1/4 adventure-sidebar flex flex-col shadow-xl z-20 border-r-4 border-[#1a110b]">
+        <div class="p-5 bg-[#1a110b] flex justify-between items-center border-b border-[#3e2b1f]">
+            <h2 class="font-bold text-lg truncate text-amber-400">
+                <i class="fa-solid fa-map-location-dot mr-2"></i> {{ course.title }}
+            </h2>
+            <a href="{{ url_for('learning.index') }}" class="text-xs text-gray-400 hover:text-white transition"><i class="fa-solid fa-door-open text-lg"></i></a>
+        </div>
+        
+        <div class="p-3 text-xs font-bold text-[#8c6d53] uppercase tracking-widest mt-2">Quest Log</div>
+        
+        <ul id="topics-list" class="flex-1 overflow-y-auto px-3 space-y-2 pb-4">
+            {% for topic in topics %}
+            <li data-id="{{ topic.id }}" class="group relative cursor-grab bg-transparent hover:bg-[#3e2b1f] rounded-lg transition {% if active_topic and topic.id == active_topic.id %} bg-[#4a3320] border-[#7a593e] shadow-inner font-bold {% endif %}">
+                <div class="flex items-center justify-between">
+                    <a href="{{ url_for('learning.course_detail', course_id=course.id) }}?topic_id={{ topic.id }}" 
+                       class="block w-full p-3 text-gray-300 hover:text-amber-100 {% if active_topic and topic.id == active_topic.id %} text-amber-300 {% endif %}">
+                        <i class="fa-solid {% if active_topic and topic.id == active_topic.id %}fa-location-dot animate-bounce{% else %}fa-map-pin{% endif %} mr-2 text-sm opacity-70"></i> 
+                        {{ topic.name }}
+                    </a>
+                    <button onclick="deleteTopic({{ topic.id }})" class="mr-3 text-[#8c6d53] hover:text-red-500 opacity-0 group-hover:opacity-100 transition z-10 p-2">
+                        <i class="fa-solid fa-trash text-sm"></i>
+                    </button>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+
+        <div class="p-4 bg-[#231710]">
+            <input type="text" id="new-topic-name" placeholder="ชื่อพื้นที่ใหม่..." class="w-full bg-[#1a110b] border border-[#4a3320] rounded-md px-3 py-2 text-sm mb-2 text-amber-100 outline-none focus:border-amber-600">
+            <button id="add-topic-btn" class="w-full bg-amber-700 text-white py-2 rounded-md hover:bg-amber-600 text-sm font-bold transition shadow-md">
+                <i class="fa-solid fa-plus mr-1"></i> สำรวจพื้นที่ใหม่
+            </button>
+        </div>
+    </div>
+
+    <div class="w-3/4 flex flex-col h-screen relative bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')]">
+        {% if active_topic %}
+        
+        <div class="p-6 bg-white/60 backdrop-blur-md shadow-sm z-10 border-b border-[#d4c4a8] flex justify-between items-center">
+            <h1 class="text-3xl font-bold text-[#3e2723] drop-shadow-sm flex items-center">
+                <i class="fa-solid fa-scroll text-amber-700 mr-3"></i> {{ active_topic.name }}
+            </h1>
+            
+            <button onclick="generateMarkdown()" class="bg-[#3d3028] text-amber-100 px-4 py-2 rounded-lg hover:bg-black transition flex items-center shadow-md">
+                <i class="fa-solid fa-robot mr-2"></i> สรุปเนื้อหาสำหรับ AI
+            </button>
+        </div>
+
+        <div id="bubbles-list" class="flex-1 overflow-y-auto p-8 flex flex-col gap-6">
+            {% for bubble in bubbles %}
+            <div data-id="{{ bubble.id }}" class="adventure-bubble p-6 rounded-xl relative group w-full h-fit">
+                <div class="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-2 z-10">
+                    <button onclick="openEditBubbleModal({{ bubble.id }})" class="w-8 h-8 rounded-full bg-amber-100 text-amber-700 hover:bg-amber-600 hover:text-white flex items-center justify-center transition shadow">
+                        <i class="fa-solid fa-pen text-xs"></i>
+                    </button>
+                    <button onclick="toggleInclude({{ bubble.id }}, this)" class="w-8 h-8 rounded-full {{ 'bg-green-100 text-green-600' if bubble.include_in_random else 'bg-gray-100 text-gray-600' }} hover:bg-green-200 hover:text-green-800 flex items-center justify-center transition shadow">
+                        <i class="fa-solid {{ 'fa-eye' if bubble.include_in_random else 'fa-eye-slash' }} text-xs"></i>
+                    </button>
+                    <button onclick="deleteBubble({{ bubble.id }})" class="w-8 h-8 rounded-full bg-red-100 text-red-600 hover:bg-red-600 hover:text-white flex items-center justify-center transition shadow">
+                        <i class="fa-solid fa-trash text-xs"></i>
+                    </button>
+                </div>
+                
+                <div class="ql-editor bubble-content" style="padding: 0;">
+                    {{ bubble.content | safe }}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="p-6 bg-[#f4ece1] border-t-2 border-[#d4c4a8] shadow-md">
+            <div id="editor-container" style="height: 120px;"></div>
+            <div class="mt-4 flex justify-end">
+                <button id="save-bubble-btn" class="bg-emerald-700 text-white px-6 py-2.5 rounded-lg hover:bg-emerald-600 font-bold transition shadow-lg flex items-center">
+                    <i class="fa-solid fa-feather-pointed mr-2"></i> บันทึกเรื่องราว
+                </button>
+            </div>
+        </div>
+
+        {% else %}
+        <div class="flex flex-col items-center justify-center h-full text-[#8c6d53]">
+            <i class="fa-solid fa-compass text-6xl mb-4 opacity-50"></i>
+            <p class="text-xl font-bold">เลือก Quest ทางด้านซ้ายเพื่อเริ่มต้นบันทึกการเดินทาง</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <div id="markdownModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-6">
+        <div class="bg-[#fdfbf7] rounded-xl p-8 w-full max-w-4xl max-h-[90vh] shadow-2xl border-2 border-[#d4c4a8] flex flex-col">
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <h2 class="text-2xl font-bold text-[#3e2723]"><i class="fa-solid fa-file-code mr-2"></i> Intelligence Summary (Markdown)</h2>
+                <button onclick="closeMarkdownModal()" class="text-gray-400 hover:text-red-500 transition"><i class="fa-solid fa-xmark text-2xl"></i></button>
+            </div>
+            <textarea id="markdownOutput" class="flex-1 w-full bg-[#f4ece1] border border-[#d4c4a8] rounded-lg p-4 font-mono text-sm outline-none" readonly></textarea>
+            <div class="mt-6 flex justify-end">
+                <button id="copyBtn" onclick="copyMarkdown()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition font-bold">
+                    <i class="fa-solid fa-copy mr-2"></i> คัดลอกเนื้อหา
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="editBubbleModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+        <div class="bg-[#fdfbf7] rounded-xl p-6 w-full max-w-3xl border-2 border-[#d4c4a8]">
+            <h2 class="text-xl font-bold mb-4 text-[#3e2723]"><i class="fa-solid fa-pen-nib mr-2"></i> แก้ไขบันทึก</h2>
+            <div id="edit-editor-container" style="height: 250px;"></div>
+            <div class="flex justify-end space-x-3 mt-4">
+                <button onclick="closeEditModal()" class="px-5 py-2 border rounded-lg">ยกเลิก</button>
+                <button id="saveEditBubbleBtn" class="px-5 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 font-bold transition">อัปเดตบันทึก</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // 🟢 3. ระบบล้างบรรทัดว่างส่วนเกินและ Auto Scroll
+    function cleanHTML(html) {
+        return html.replace(/^(<p><br\s*\/?>\s*<\/p>\s*)+|(<p><br\s*\/?>\s*<\/p>\s*)+$/gi, "").trim();
+    }
+
+    window.onload = function() {
+        document.querySelectorAll('.bubble-content').forEach(el => {
+            el.innerHTML = cleanHTML(el.innerHTML);
+        });
+        if (localStorage.getItem('scrollToBottom') === 'true') {
+            const list = document.getElementById('bubbles-list');
+            if (list) list.scrollTop = list.scrollHeight;
+            localStorage.removeItem('scrollToBottom');
+        }
+    };
+
+    hljs.configure({ languages: ['python', 'cpp', 'javascript', 'prolog'] });
+    Quill.register('modules/blotFormatter', QuillBlotFormatter.default);
+    const turndownService = new TurndownService({ headingStyle: 'atx', codeBlockStyle: 'fenced' });
+
+    let mainQuill, editQuill, currentEditBubbleId = null;
+    const qOptions = { modules: { syntax: true, formula: true, blotFormatter: {}, toolbar: [['bold', 'italic', 'underline', 'strike'], [{ 'color': [] }, { 'background': [] }], ['link', 'code-block', 'formula', 'image', 'video'], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['clean']] }, theme: 'snow' };
+
+    {% if active_topic %}
+    mainQuill = new Quill('#editor-container', { ...qOptions, placeholder: 'พิมพ์เนื้อหา...' });
+    // add custom LaTeX-generation handler and toolbar button
+    function handleGenerateLatex() {
+        const range = mainQuill.getSelection();
+        if (!range || range.length === 0) return;
+        let text = mainQuill.getText(range.index, range.length);
+        // look for single-dollar wrapped expression anywhere in selection
+        const m = text.match(/\$(.+?)\$/);
+        if (m) {
+            const expr = m[1];
+            mainQuill.deleteText(range.index, range.length);
+            mainQuill.insertEmbed(range.index, 'formula', expr);
+        }
+    }
+    const toolbarModule = mainQuill.getModule('toolbar');
+    toolbarModule.addHandler('generateLatex', handleGenerateLatex);
+    // inject button if not present
+    const tb = toolbarModule.container;
+    if (!tb.querySelector('.ql-generateLatex')) {
+        const btn = document.createElement('button');
+        btn.setAttribute('type','button');
+        btn.classList.add('ql-generateLatex');
+        btn.title = 'สร้างสมการ LaTeX (เลือกข้อความที่ขึ้นต้นด้วย $$)';
+        btn.innerHTML = '<i class="fa-solid fa-square-root-variable"></i>';
+        tb.appendChild(btn);
+        btn.addEventListener('click', handleGenerateLatex);
+    }
+    document.getElementById('save-bubble-btn').addEventListener('click', () => {
+        let content = cleanHTML(mainQuill.root.innerHTML);
+        if (!content || content === '<p><br></p>') return;
+        fetch('{{ url_for("learning.add_bubble") }}', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ topic_id: {{ active_topic.id }}, content: content }) })
+        .then(res => res.json()).then(data => { if(data.success) { localStorage.setItem('scrollToBottom', 'true'); location.reload(); } });
+    });
+    {% endif %}
+
+    function generateMarkdown() {
+        const bubbles = document.querySelectorAll('.bubble-content');
+        let fullHTML = `<h1>${document.querySelector('h1').innerText}</h1>\n`;
+        bubbles.forEach(b => { fullHTML += b.innerHTML + "\n\n---\n\n"; });
+        document.getElementById('markdownOutput').value = turndownService.turndown(fullHTML);
+        document.getElementById('markdownModal').classList.remove('hidden');
+    }
+    function closeMarkdownModal() { document.getElementById('markdownModal').classList.add('hidden'); }
+    function copyMarkdown() { const out = document.getElementById('markdownOutput'); out.select(); document.execCommand('copy'); alert('คัดลอก Markdown สำเร็จ!'); }
+
+    function deleteTopic(id) { if(confirm('ลบพื้นที่นี้?')) fetch(`/learning/api/delete_topic/${id}`, { method: 'DELETE' }).then(() => window.location.href="{{ url_for('learning.course_detail', course_id=course.id) }}"); }
+    function toggleInclude(id, btn) {
+        // flip state locally for optimistic UI
+        const icon = btn.querySelector('i');
+        const currently = icon.classList.contains('fa-eye');
+        const include = !currently;
+        fetch(`/learning/api/set_bubble_status/${id}`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ include: include })
+        }).then(r => r.json()).then(data => {
+            if(data.success) {
+                icon.classList.toggle('fa-eye', data.included);
+                icon.classList.toggle('fa-eye-slash', !data.included);
+                btn.classList.toggle('bg-green-100', data.included);
+                btn.classList.toggle('text-green-600', data.included);
+                btn.classList.toggle('bg-gray-100', !data.included);
+                btn.classList.toggle('text-gray-600', !data.included);
+            }
+        });
+    }
+    function openEditBubbleModal(id) { currentEditBubbleId = id; const html = document.querySelector(`div[data-id="${id}"] .bubble-content`).innerHTML; document.getElementById('editBubbleModal').classList.remove('hidden'); if (!editQuill) editQuill = new Quill('#edit-editor-container', qOptions); editQuill.root.innerHTML = html; }
+    // 🟢 enable drag‑reorder of bubbles and persist order
+    if (document.getElementById('bubbles-list')) {
+        Sortable.create(document.getElementById('bubbles-list'), {
+            animation: 150,
+            handle: '.adventure-bubble',
+            onEnd: function(evt) {
+                const order = Array.from(document.querySelectorAll('#bubbles-list > .adventure-bubble')).map(el => el.dataset.id);
+                fetch('{{ url_for("learning.reorder_bubbles") }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids: order })
+                });
+            }
+        });
+    }
+    function closeEditModal() { document.getElementById('editBubbleModal').classList.add('hidden'); }
+    
+    document.getElementById('saveEditBubbleBtn').addEventListener('click', () => {
+        let content = cleanHTML(editQuill.root.innerHTML);
+        fetch(`/learning/api/edit_bubble/${currentEditBubbleId}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: content }) }).then(() => location.reload());
+    });
+
+    function deleteBubble(id) { if(confirm('ลบบันทึกนี้?')) fetch(`/learning/api/delete_bubble/${id}`, { method: 'DELETE' }).then(() => location.reload()); }
+    document.getElementById('add-topic-btn').addEventListener('click', () => { const n = document.getElementById('new-topic-name').value; if(n) fetch('{{ url_for("learning.add_topic") }}', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ course_id: {{ course.id }}, name: n }) }).then(() => location.reload()); });
+    </script>
+</body>
+</html>

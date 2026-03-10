@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Archives - Dossier System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Prompt:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        body { background-color: #d1c7b7; font-family: 'Prompt', sans-serif; }
+        .typewriter { font-family: 'Special Elite', cursive; }
+        .folder-card { 
+            background-color: #e6d5b8; 
+            border-left: 15px solid #c2a382;
+            box-shadow: 5px 5px 0px rgba(0,0,0,0.1);
+        }
+        .stamp-pending { border: 3px solid #b22222; color: #b22222; transform: rotate(-10deg); font-weight: bold; text-transform: uppercase; padding: 2px 8px; opacity: 0.8; }
+        .stamp-done { border: 3px solid #228b22; color: #228b22; transform: rotate(5deg); font-weight: bold; text-transform: uppercase; padding: 2px 8px; opacity: 0.8; }
+    </style>
+</head>
+<body class="p-8">
+
+    <div class="max-w-5xl mx-auto">
+        <div class="bg-[#f2e8d5] p-8 border-2 border-[#b8a994] mb-10 shadow-inner relative overflow-hidden">
+            <h1 class="text-4xl typewriter font-bold text-[#3d3028] mb-2 text-center underline">DEPARTMENT OF PRODUCTIVITY</h1>
+            <p class="text-center typewriter text-xs text-gray-500 mb-6 italic">CLASSIFIED INFORMATION - INTERNAL USE ONLY</p>
+            
+            <div class="grid grid-cols-2 gap-4 mt-4 border-t-2 border-dashed border-[#b8a994] pt-6">
+                <div class="text-center">
+                    <p class="typewriter text-lg text-red-800">ACTIVE MISSIONS</p>
+                    <p class="text-5xl font-bold mt-2">{{ pending_count }}</p>
+                </div>
+                <div class="text-center border-l-2 border-[#b8a994]">
+                    <p class="typewriter text-lg text-green-800">ARCHIVED CASES</p>
+                    <p class="text-5xl font-bold mt-2">{{ completed_count }}</p>
+                </div>
+            </div>
+
+            <button onclick="document.getElementById('taskModal').classList.remove('hidden')" 
+                    class="mt-8 mx-auto block bg-[#3d3028] text-[#e6d5b8] px-8 py-3 typewriter hover:bg-black transition shadow-lg">
+                [ OPEN NEW DOSSIER ]
+            </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {% for task in tasks %}
+            <div class="relative group">
+                <button onclick="destroyFile({{ task.id }})" 
+                        class="absolute top-4 right-4 z-10 opacity-0 group-hover:opacity-100 text-red-800 hover:text-red-500 transition-opacity p-2"
+                        title="DESTROY FILE">
+                    <i class="fa-solid fa-fire-extinguisher text-xl"></i>
+                </button>
+
+                <a href="{{ url_for('todo.task_detail', task_id=task.id) }}" class="folder-card p-6 block hover:-translate-y-1 transition duration-200 relative overflow-hidden h-full">
+                    <div class="flex justify-between items-start mb-4">
+                        <span class="text-xs typewriter text-gray-600">REF-NO: {{ "%04d"|format(task.id) }}</span>
+                        <div class="{% if task.status == 'pending' %}stamp-pending{% else %}stamp-done{% endif %} typewriter text-xs">
+                            {{ task.status }}
+                        </div>
+                    </div>
+                    <h3 class="text-2xl font-bold text-[#3d3028] mb-2 group-hover:underline">{{ task.title }}</h3>
+                    <p class="text-sm text-gray-700 h-12 overflow-hidden mb-4">{{ task.description or "No further intel..." }}</p>
+                    
+                    <div class="flex items-center text-xs typewriter text-gray-500 border-t border-[#c2a382] pt-4">
+                        <i class="fa-solid fa-list-check mr-2"></i> OBJECTIVES: {{ task.subtasks | length }}
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div id="taskModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="bg-[#e6d5b8] p-8 w-full max-w-md border-4 border-[#3d3028] shadow-2xl transform -rotate-1">
+            <h2 class="text-2xl typewriter font-bold mb-6 text-center border-b-2 border-[#3d3028] pb-2 text-[#3d3028]">NEW MISSION PROTOCOL</h2>
+            <form action="{{ url_for('todo.create_task') }}" method="POST">
+                <div class="mb-4">
+                    <label class="block typewriter text-sm mb-1 text-[#3d3028]">SUBJECT TITLE:</label>
+                    <input type="text" name="title" required class="w-full bg-[#f2e8d5] border-2 border-[#3d3028] p-2 typewriter focus:bg-white outline-none">
+                </div>
+                <div class="mb-6">
+                    <label class="block typewriter text-sm mb-1 text-[#3d3028]">INTELLIGENCE BRIEF:</label>
+                    <textarea name="description" rows="3" class="w-full bg-[#f2e8d5] border-2 border-[#3d3028] p-2 typewriter focus:bg-white outline-none"></textarea>
+                </div>
+                <div class="flex justify-between items-center">
+                    <button type="button" onclick="document.getElementById('taskModal').classList.add('hidden')" class="typewriter text-red-800 underline">ABORT</button>
+                    <button type="submit" class="bg-[#3d3028] text-[#e6d5b8] px-6 py-2 typewriter hover:bg-black">CONFIRM FILE</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function destroyFile(id) {
+            if(confirm('CONFIRM DESTRUCTION: คุณแน่ใจหรือไม่ที่จะทำลายแฟ้มเอกสารลับนี้?')) {
+                fetch(`/todo/api/delete_task/${id}`, { method: 'DELETE' })
+                .then(res => res.json()).then(data => {
+                    if(data.success) location.reload();
+                });
+            }
+        }
+    </script>
+</body>
+</html>

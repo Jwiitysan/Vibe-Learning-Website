@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Journey Log - Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        body { background-color: #f4ece1; font-family: 'Prompt', sans-serif; }
+        .course-card { background-color: #fdfbf7; border: 1px solid #d4c4a8; transition: all 0.3s; }
+        .course-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.05); }
+        .discovery-box { background-color: #fff; border: 2px dashed #d4c4a8; }
+        .ql-editor { padding: 0 !important; min-height: auto !important; }
+        /* สไตล์ปุ่มหมวดหมู่ที่ถูกเลือก */
+        .category-btn.active { background-color: #b45309; color: white; border-color: #b45309; }
+    </style>
+</head>
+<body class="p-8">
+
+    <div class="max-w-7xl mx-auto">
+        
+        {% if random_knowledge %}
+        <div class="mb-12">
+            <div class="flex items-center space-x-3 mb-6">
+                <i class="fa-solid fa-dice text-amber-700 text-3xl animate-pulse"></i>
+                <h2 class="text-2xl font-bold text-[#3e2723]">Daily Knowledge Discovery</h2>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {% for item in random_knowledge %}
+                <div class="discovery-box p-6 rounded-2xl bg-white shadow-sm">
+                    <div class="flex flex-wrap gap-2 mb-4">
+                        <span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter">{{ item.course_title }}</span>
+                        <span class="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter">{{ item.topic_name }}</span>
+                    </div>
+                    <!-- removed line-clamp so full content is visible; if very long, allow scroll -->
+                    <div class="text-gray-700 text-sm ql-editor max-h-40 overflow-y-auto">{{ item.content | safe }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        <hr class="border-[#d4c4a8] mb-12 opacity-50">
+        {% endif %}
+
+        <div class="flex flex-col space-y-6 mb-10">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                <h1 class="text-4xl font-bold text-[#3e2723]"><i class="fa-solid fa-map-marked-alt mr-4 text-amber-700"></i> My Journey Map</h1>
+                
+                <div class="flex w-full md:w-auto items-center space-x-3">
+                    <div class="relative flex-1 md:w-64">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        <input type="text" id="courseSearch" onkeyup="filterContent()" placeholder="ค้นชื่อวิชา..." 
+                               class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#d4c4a8] bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-sm">
+                    </div>
+                    <button onclick="document.getElementById('addCourseModal').classList.remove('hidden')" 
+                            class="bg-amber-700 text-white px-6 py-2.5 rounded-xl hover:bg-amber-600 transition shadow-lg flex items-center font-bold">
+                        <i class="fa-solid fa-plus mr-2"></i> สำรวจใหม่
+                    </button>
+                    <!-- ปุ่มสร้าง Markdown แบบสุ่มทั้งวิชาและจำนวนเนื้อหา (แสดงใน modal) -->
+                    <button onclick="fetchMarkdown()" 
+                       class="bg-green-600 text-white px-6 py-2.5 rounded-xl hover:bg-green-500 transition shadow-lg flex items-center font-bold">
+                        <i class="fa-solid fa-file-lines mr-2"></i> สร้าง Markdown
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap gap-2 overflow-x-auto pb-2">
+                <button onclick="filterCategory('all', this)" class="category-btn active px-4 py-1.5 rounded-full border border-[#d4c4a8] text-sm font-medium hover:border-amber-700 transition">
+                    ทั้งหมด
+                </button>
+                {% for cat in categories %}
+                <button onclick="filterCategory('{{ cat.lower() }}', this)" class="category-btn px-4 py-1.5 rounded-full border border-[#d4c4a8] text-sm font-medium hover:border-amber-700 transition">
+                    {{ cat }}
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div id="courseContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {% for course in courses %}
+            <div class="course-item" data-title="{{ course.title.lower() }}" data-category="{{ (course.category or 'general').lower() }}">
+                <a href="{{ url_for('learning.course_detail', course_id=course.id) }}" class="course-card rounded-2xl overflow-hidden flex flex-col group h-full">
+                    <div class="h-40 bg-cover bg-center relative" style="background-image: url('{{ url_for('static', filename='uploads/' + (course.background_image or 'default.jpg')) }}')">
+                        <div class="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors"></div>
+                        <span class="absolute top-3 left-3 bg-amber-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm">{{ course.category or 'General' }}</span>
+                    </div>
+                    <div class="p-5">
+                        <h3 class="text-lg font-bold text-[#3e2723] mb-2">{{ course.title }}</h3>
+                        <div class="text-xs text-gray-500 flex items-center">
+                            <i class="fa-solid fa-layer-group mr-2"></i> {{ course.topics | length }} Topics Found
+                        </div>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div id="noResults" class="hidden text-center py-20">
+            <i class="fa-solid fa-ghost text-5xl text-gray-300 mb-4"></i>
+            <p class="text-gray-500 font-bold text-xl">ไม่พบวิชาที่คุณกำลังค้นหา...</p>
+        </div>
+    </div>
+
+    <div id="addCourseModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <form action="{{ url_for('learning.create_course') }}" method="POST" enctype="multipart/form-data" class="bg-white p-8 rounded-2xl w-full max-w-md">
+            <h2 class="text-2xl font-bold mb-6">เริ่มการสำรวจใหม่</h2>
+            <div class="space-y-4">
+                <input type="text" name="title" placeholder="ชื่อวิชา..." required class="w-full border border-slate-200 p-3 rounded-xl outline-none focus:border-amber-500">
+                <input list="catlist" type="text" name="category" placeholder="หมวดหมู่..." class="w-full border border-slate-200 p-3 rounded-xl outline-none focus:border-amber-500">
+                <datalist id="catlist">
+                    {% for cat in categories %}
+                    <option value="{{ cat }}"></option>
+                    {% endfor %}
+                </datalist>
+                <input type="file" name="background_image" class="w-full text-sm">
+            </div>
+            <div class="flex justify-end space-x-3 mt-8">
+                <button type="button" onclick="document.getElementById('addCourseModal').classList.add('hidden')" class="px-5 py-2 text-gray-400">ยกเลิก</button>
+                <button type="submit" class="bg-amber-700 text-white px-8 py-2 rounded-xl font-bold">เริ่มเดินทาง</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- modal สำหรับผลลัพธ์ Markdown -->
+    <div id="markdownModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="bg-white p-6 rounded-2xl w-full max-w-2xl">
+            <h2 class="text-2xl font-bold mb-4">Generated Markdown</h2>
+            <textarea id="markdownOutput" class="w-full h-64 border rounded p-2"></textarea>
+            <div class="flex justify-end space-x-3 mt-4">
+                <button onclick="copyMarkdown()" class="px-5 py-2 bg-amber-700 text-white rounded">Copy</button>
+                <button onclick="document.getElementById('markdownModal').classList.add('hidden')" class="px-5 py-2 text-gray-400">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentCategory = 'all';
+
+        // 🟢 ฟังก์ชัน Filter หมวดหมู่
+        function filterCategory(cat, btn) {
+            currentCategory = cat;
+            
+            // เปลี่ยนสถานะปุ่ม
+            document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            filterContent(); // สั่งกรองเนื้อหาใหม่
+        }
+
+        // 🟢 ฟังก์ชันกรองเนื้อหา (ทำงานร่วมกันทั้ง Search และ Category)
+        function filterContent() {
+            const searchText = document.getElementById('courseSearch').value.toLowerCase();
+            const items = document.querySelectorAll('.course-item');
+            const noResults = document.getElementById('noResults');
+            let hasVisibleItems = false;
+
+            items.forEach(item => {
+                const title = item.getAttribute('data-title');
+                const category = item.getAttribute('data-category');
+                
+                // ตรวจสอบว่าตรงทั้งหมวดหมู่และคำค้นหาหรือไม่
+                const matchCategory = (currentCategory === 'all' || category === currentCategory);
+                const matchSearch = title.includes(searchText);
+
+                if (matchCategory && matchSearch) {
+                    item.style.display = "";
+                    hasVisibleItems = true;
+                } else {
+                    item.style.display = "none";
+                }
+            });
+
+            noResults.style.display = hasVisibleItems ? "none" : "block";
+        }
+
+        // 💡 ดึง Markdown จากเซิร์ฟเวอร์และแสดงใน modal
+        function fetchMarkdown() {
+            fetch('{{ url_for("learning.generate_markdown") }}')
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('markdownOutput').value = data.markdown;
+                    document.getElementById('markdownModal').classList.remove('hidden');
+                });
+        }
+
+        // 💡 คัดลอกข้อความใน textarea
+        function copyMarkdown() {
+            const ta = document.getElementById('markdownOutput');
+            ta.select();
+            document.execCommand('copy');
+        }
+    </script>
+</body>
+</html>
