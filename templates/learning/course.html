@@ -343,7 +343,7 @@
     }
     function openEditBubbleModal(id) { currentEditBubbleId = id; const html = document.querySelector(`div[data-id="${id}"] .bubble-content`).innerHTML; document.getElementById('editBubbleModal').classList.remove('hidden'); if (!editQuill) editQuill = new Quill('#edit-editor-container', qOptions); editQuill.root.innerHTML = html; }
     
-    // 🟢 Simple drag-reorder of TOPICS (sections are visual only)
+    // 🟢 Drag-reorder topics and allow moving across sections
     if (document.getElementById('topics-list')) {
         Sortable.create(document.getElementById('topics-list'), {
             animation: 150,
@@ -351,16 +351,28 @@
             draggable: 'li[data-id]',   // Only drag items with data-id
             ghostClass: 'opacity-50 bg-amber-600',
             onEnd: function(evt) {
-                // Simple: just save order, don't change sections
-                const topicIds = [];
-                document.querySelectorAll('#topics-list li[data-id]').forEach(el => {
-                    topicIds.push(el.dataset.id);
+                const updates = [];
+                let currentSectionId = 'none';
+
+                document.querySelectorAll('#topics-list li').forEach((el, orderIndex) => {
+                    if (el.classList.contains('section-header')) {
+                        currentSectionId = el.dataset.sectionId || 'none';
+                        return;
+                    }
+
+                    if (!el.dataset.id) return;
+                    el.dataset.sectionId = currentSectionId;
+                    updates.push({
+                        id: Number(el.dataset.id),
+                        order: updates.length,
+                        section_id: currentSectionId
+                    });
                 });
                 
-                fetch('{{ url_for("learning.reorder_topics") }}', {
+                fetch('{{ url_for("learning.update_topics_order_and_sections") }}', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ids: topicIds })
+                    body: JSON.stringify({ updates: updates })
                 });
             }
         });
